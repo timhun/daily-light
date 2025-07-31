@@ -1,0 +1,43 @@
+name: Daily Light Podcast
+
+on:
+  schedule:
+    - cron: '0 22,10 * * *'  # 台灣早上 6 點與下午 6 點（UTC+0）
+  workflow_dispatch:
+
+jobs:
+  generate-daily-light:
+    runs-on: ubuntu-latest
+    env:
+      B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      VOICE_NAME: zh-TW-YunJheNeural
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run OCR and synthesize audio
+        run: python scripts/ocr_image_to_text.py
+
+      - name: Upload MP3 to B2
+        run: python scripts/upload_to_b2.py
+
+      - name: Generate RSS feed
+        run: python scripts/generate_rss.py
+
+      - name: Commit and push updated RSS
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/rss/podcast.xml
+          git commit -m "update RSS feed"
+          git push
