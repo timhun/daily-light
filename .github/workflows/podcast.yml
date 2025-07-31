@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install Tesseract OCR with Traditional Chinese (Vertical)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra-vert
+
       - name: Run OCR and synthesize audio
         run: python scripts/ocr_image_to_text.py
 
