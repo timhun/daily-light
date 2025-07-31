@@ -1,0 +1,6 @@
+pytz
+feedgen
+requests
+edge-tts
+pillow
+opencc-python-reimplemented
