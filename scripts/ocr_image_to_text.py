@@ -2,12 +2,12 @@
 import pytesseract
 from PIL import Image
 import os
-import json
 from datetime import datetime
 
 def ocr_image(image_path):
     try:
-        text = pytesseract.image_to_string(Image.open(image_path), lang='chi_tra')
+        # 使用繁體中文直排語系
+        text = pytesseract.image_to_string(Image.open(image_path), lang='chi_tra_vert')
         return text.strip()
     except Exception as e:
         print(f"❌ 無法辨識圖片 {image_path}：{e}")
@@ -25,7 +25,7 @@ def save_text(date_str, text):
 def main():
     today = datetime.now().strftime("%Y%m%d")
     image_path = f"docs/img/{today}.jpg"
-    
+
     if not os.path.exists(image_path):
         print(f"❌ 找不到圖片：{image_path}")
         return
@@ -40,4 +40,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
