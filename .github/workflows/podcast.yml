@@ -2,7 +2,7 @@ name: Daily Light Podcast
 
 on:
   schedule:
-    - cron: '0 22,10 * * *'  # 台灣早上 6 點與下午 6 點（UTC+0）
+    - cron: '0 22,10 * * *'  # 台灣時間早上 6 點與下午 6 點（UTC+0）
   workflow_dispatch:
 
 jobs:
@@ -22,13 +22,14 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Install Tesseract OCR with Traditional Chinese (Vertical)
+      - name: Install Tesseract with Traditional Chinese language
         run: |
           sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra-vert
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra
+          echo "TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata" >> $GITHUB_ENV
 
       - name: Run OCR and synthesize audio
         run: python scripts/ocr_image_to_text.py
