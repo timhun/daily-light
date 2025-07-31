@@ -24,7 +24,7 @@ def save_text(date_str, text):
 
 def main():
     today = datetime.now().strftime("%Y%m%d")
-    image_path = f"docs/images/{today}.jpg"
+    image_path = f"docs/img/{today}.jpg"
     
     if not os.path.exists(image_path):
         print(f"❌ 找不到圖片：{image_path}")
