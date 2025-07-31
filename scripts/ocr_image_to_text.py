@@ -1,3 +1,5 @@
+# scripts/ocr_image_to_text.py
+
 import pytesseract
 from PIL import Image
 import os
@@ -18,13 +20,20 @@ def ocr_image(image_path):
     return ""
 
 def save_text(date_str, text):
+    if not text.strip():
+        print("⚠️ 無有效文字內容，將儲存空白逐字稿")
+    
     output_dir = f"docs/podcast/{date_str}"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "script.txt")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(text)
-    print(f"✅ 已儲存逐字稿至 {output_path}")
-    return output_path
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, "script.txt")
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(text.strip())
+        print(f"✅ 已儲存逐字稿至 {output_path}")
+        return output_path
+    except Exception as e:
+        print(f"❌ 儲存逐字稿失敗：{e}")
+        return None
 
 def main():
     tz = pytz.timezone("Asia/Taipei")
@@ -35,16 +44,20 @@ def main():
 
     if not os.path.exists(image_path):
         print(f"❌ 找不到圖片：{image_path}")
-        save_text(today, "")  # 寫入空稿以避免 GitHub Action 中斷
+        save_text(today, "")  # 即便找不到也儲存空稿，避免 workflow 中斷
         sys.exit(0)
 
     text = ocr_image(image_path)
+
     if not text:
         print("⚠️ 無法辨識出文字，將建立空的逐字稿")
         save_text(today, "")
         sys.exit(0)
 
-    save_text(today, text)
+    output_path = save_text(today, text)
+    if output_path is None:
+        print("❌ 建立逐字稿失敗，結束")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
