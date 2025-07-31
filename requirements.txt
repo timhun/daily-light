@@ -6,3 +6,5 @@ pillow
 opencc-python-reimplemented
 pytesseract
 Pillow
+b2sdk
+boto3
