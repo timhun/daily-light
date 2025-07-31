@@ -1,0 +1,21 @@
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>幫幫忙說每日亮光</title>
+    <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
+    <description>每日一則靈修亮光，用聲音溫柔照亮新的一天</description>
+    <language>zh-tw</language>
+    <itunes:author>幫幫忙</itunes:author>
+    <itunes:owner>
+      <itunes:name>幫幫忙</itunes:name>
+      <itunes:email>your-email@example.com</itunes:email>
+    </itunes:owner>
+    <itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg"/>
+    <item>
+      <title>每日亮光－2025年07月31日</title>
+      <description>圖片文字轉語音內容</description>
+      <enclosure url="https://f005.backblazeb2.com/file/daily-light/20250731.mp3" type="audio/mpeg"/>
+      <guid>https://f005.backblazeb2.com/file/daily-light/20250731.mp3</guid>
+      <pubDate>Thu, 31 Jul 2025 06:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
