@@ -8,7 +8,7 @@ from feedgen.feed import FeedGenerator
 
 FEED_TITLE = "幫幫忙說每日亮光"
 FEED_AUTHOR = "幫幫忙"
-FEED_EMAIL = "your@email.com"
+FEED_EMAIL = "tim.oneway@gmail.com"
 FEED_LINK = "https://timhun.github.io/daily-light/rss/podcast.xml"
 FEED_IMAGE = "https://timhun.github.io/daily-light/img/cover.jpg"
 B2_BASE_URL = "https://f005.backblazeb2.com/file/daily-light/"
