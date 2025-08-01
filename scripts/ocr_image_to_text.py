@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # 環境變數與路徑
 BASE_DIR = os.getenv("BASE_DIR", "docs")
-IMAGE_DIR = os.path.join(BASE_DIR, "images")
+IMAGE_DIR = os.path.join(BASE_DIR, "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "podcast")
 TESSDATA_PREFIX = os.environ.get("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/5/tessdata")
 
