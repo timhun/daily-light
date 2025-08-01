@@ -1,3 +1,4 @@
+# scripts/ocr_image_to_text.py
 import pytesseract
 from PIL import Image
 import os
@@ -21,34 +22,38 @@ def save_text(date_str, text):
     output_dir = f"docs/podcast/{date_str}"
     try:
         os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, "script.txt")
+    except Exception as e:
+        print(f"❌ 建立資料夾失敗：{e}")
+        return ""
+    
+    output_path = os.path.join(output_dir, "script.txt")
+    try:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(text)
         print(f"✅ 已儲存逐字稿至 {output_path}")
-        return output_path
     except Exception as e:
-        print(f"❌ 儲存逐字稿失敗：{e}")
-        return None
+        print(f"❌ 無法寫入文字檔：{e}")
+    return output_path
 
 def main():
     tz = pytz.timezone("Asia/Taipei")
-    now = datetime.now(tz)
-    today = now.strftime("%Y%m%d")
-    print(f"📅 台灣時間：{now.strftime('%Y-%m-%d %H:%M:%S')} → 檔名：{today}.jpg")
-
+    today = datetime.now(tz).strftime("%Y%m%d")
     image_path = f"docs/img/{today}.jpg"
-    print(f"📷 檢查圖片路徑：{image_path}")
+
+    print(f"📷 開始辨識圖片：{image_path}")
+    if not os.path.exists("docs/img"):
+        print("❌ 圖片資料夾 docs/img 不存在！")
+    else:
+        print(f"📂 目前 docs/img 內檔案有：{os.listdir('docs/img')}")
 
     if not os.path.exists(image_path):
-        print(f"❌ 找不到圖片：{image_path}")
-        existing_images = [f for f in os.listdir("docs/img") if f.endswith(".jpg")]
-        print(f"📂 目前 docs/img/ 下有圖片：{existing_images}")
-        output_path = save_text(today, "")
+        print(f"❌ 找不到圖片：{image_path}，將建立空白逐字稿")
+        save_text(today, "")
         sys.exit(0)
 
     text = ocr_image(image_path)
     if not text:
-        print("⚠️ 無法辨識出文字，將建立空的逐字稿")
+        print("⚠️ 無法辨識出文字，將建立空白逐字稿")
         save_text(today, "")
         sys.exit(0)
 
