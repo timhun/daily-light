@@ -8,3 +8,4 @@ pytesseract
 Pillow
 b2sdk
 boto3
+tesseract-ocr-chi-sim
