@@ -1,35 +1,49 @@
+# scripts/ocr_image_to_text.py
+import pytesseract
+from PIL import Image
 import os
-import sys
-import asyncio
 from datetime import datetime
 import pytz
-import edge_tts
 
-async def text_to_speech(text_path, output_path, voice):
-    with open(text_path, "r", encoding="utf-8") as f:
-        text = f.read().strip()
+def ocr_image(image_path):
+    try:
+        text = pytesseract.image_to_string(Image.open(image_path), lang='chi_tra')
+        return text.strip()
+    except pytesseract.TesseractNotFoundError:
+        print("❌ 找不到 Tesseract，可透過 sudo apt install tesseract-ocr 安裝")
+    except pytesseract.TesseractError as e:
+        print(f"❌ Tesseract 執行錯誤：{e}")
+    except Exception as e:
+        print(f"❌ 其他錯誤：{e}")
+    return ""
 
-    if not text:
-        print(f"⚠️ 檔案為空：{text_path}，跳過語音合成")
-        return
-
-    communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output_path)
-    print(f"✅ 已儲存音檔至：{output_path}")
+def save_text(date_str, text):
+    output_dir = os.path.join("docs", "podcast", date_str)
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "script.txt")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(text)
+    print(f"✅ 已儲存逐字稿至 {output_path}")
+    return output_path
 
 def main():
     tz = pytz.timezone("Asia/Taipei")
     today = datetime.now(tz).strftime("%Y%m%d")
-    base_dir = f"docs/podcast/{today}"
-    text_path = os.path.join(base_dir, "script.txt")
-    output_path = os.path.join(base_dir, "audio.mp3")
-    voice = os.getenv("VOICE_NAME", "zh-TW-YunJheNeural")
+    image_path = os.path.join("docs", "img", f"{today}.jpg")
 
-    if not os.path.exists(text_path):
-        print(f"❌ 找不到逐字稿：{text_path}")
-        sys.exit(0)
+    print(f"📷 開始辨識圖片：{image_path}")
+    if not os.path.exists(image_path):
+        print(f"❌ 找不到圖片：{image_path}")
+        save_text(today, "")
+        return
 
-    asyncio.run(text_to_speech(text_path, output_path, voice))
+    text = ocr_image(image_path)
+    if not text:
+        print("⚠️ 無法辨識出文字，將建立空的逐字稿")
+        save_text(today, "")
+        return
+
+    save_text(today, text)
 
 if __name__ == "__main__":
     main()
