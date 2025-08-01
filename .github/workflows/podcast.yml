@@ -2,8 +2,9 @@ name: Daily Podcast Light
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每日台灣上午 8 點（UTC+0 的 00:00）
-  workflow_dispatch:      # 手動觸發也可
+    - cron: '0 22 * * *'  # 台灣早上 6 點（UTC 前一天 22:00）→ 晨
+    - cron: '0 10 * * *'  # 台灣晚上 6 點（UTC 當天 10:00）→ 晚
+  workflow_dispatch:
 
 jobs:
   generate-podcast:
@@ -25,19 +26,33 @@ jobs:
           python-version: '3.11'
 
       - name: Install system dependencies (Tesseract)
-        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Run OCR and save script
+      - name: OCR and save scripts (morning + evening)
         run: python scripts/ocr_image_to_text.py
 
-      - name: Synthesize audio using Edge-TTS
-        run: python scripts/synthesize_audio.py
+      - name: Determine current segment (晨 or 晚)
+        id: timecheck
+        run: |
+          HOUR=$(date -u +"%H")
+          if [ "$HOUR" -eq "22" ]; then
+            echo "segment=morning" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" -eq "10" ]; then
+            echo "segment=evening" >> "$GITHUB_OUTPUT"
+          else
+            echo "segment=unknown" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Synthesize audio for selected segment
+        run: |
+          python scripts/text_to_speech_edge.py --date $(TZ=Asia/Taipei date +'%Y%m%d') --segment ${{ steps.timecheck.outputs.segment }}
 
       - name: Upload MP3 to Backblaze B2
-        run: python scripts/upload_to_b2.py
+        run: |
+          python scripts/upload_to_b2.py --date $(TZ=Asia/Taipei date +'%Y%m%d') --segment ${{ steps.timecheck.outputs.segment }}
 
       - name: Generate RSS feed
         run: python scripts/generate_rss.py
@@ -47,5 +62,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/
-          git commit -m "🔁 Update daily light podcast"
+          git commit -m "🔁 Update daily light podcast (${{ steps.timecheck.outputs.segment }})"
           git push
