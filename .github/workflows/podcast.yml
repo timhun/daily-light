@@ -2,12 +2,12 @@ name: Daily Podcast Light
 
 on:
   schedule:
-    - cron: '0 22 * * *'  # 台灣早上 6 點（UTC 前一天 22:00）→ 晨
-    - cron: '0 10 * * *'  # 台灣晚上 6 點（UTC 當天 10:00）→ 晚
-  workflow_dispatch:
+    - cron: '0 22 * * *'  # 台灣早上 6 點（UTC+22）
+    - cron: '0 10 * * *'  # 台灣晚上 6 點（UTC+10）
+  workflow_dispatch:      # 手動觸發也可
 
 jobs:
-  generate-podcast:
+  generate-light:
     runs-on: ubuntu-latest
 
     env:
@@ -25,42 +25,30 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies (Tesseract)
-        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
+      - name: Install system dependencies (Tesseract + Chinese)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-all libtesseract-dev
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: OCR and save scripts (morning + evening)
+      - name: Run OCR and split morning/evening text
         run: python scripts/ocr_image_to_text.py
 
-      - name: Determine current segment (晨 or 晚)
-        id: timecheck
-        run: |
-          HOUR=$(date -u +"%H")
-          if [ "$HOUR" -eq "22" ]; then
-            echo "segment=morning" >> "$GITHUB_OUTPUT"
-          elif [ "$HOUR" -eq "10" ]; then
-            echo "segment=evening" >> "$GITHUB_OUTPUT"
-          else
-            echo "segment=unknown" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Synthesize audio for selected segment
-        run: |
-          python scripts/text_to_speech_edge.py --date $(TZ=Asia/Taipei date +'%Y%m%d') --segment ${{ steps.timecheck.outputs.segment }}
+      - name: Synthesize morning or evening audio
+        run: python scripts/synthesize_audio.py
 
       - name: Upload MP3 to Backblaze B2
-        run: |
-          python scripts/upload_to_b2.py --date $(TZ=Asia/Taipei date +'%Y%m%d') --segment ${{ steps.timecheck.outputs.segment }}
+        run: python scripts/upload_to_b2.py
 
       - name: Generate RSS feed
         run: python scripts/generate_rss.py
 
-      - name: Commit and push changes
+      - name: Commit and push updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/
-          git commit -m "🔁 Update daily light podcast (${{ steps.timecheck.outputs.segment }})"
-          git push
+          git commit -m "🔁 Update Daily Light Podcast"
+          git push || echo "No changes to commit"
