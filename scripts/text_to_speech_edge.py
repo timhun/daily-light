@@ -1,49 +1,41 @@
-# scripts/ocr_image_to_text.py
-import pytesseract
-from PIL import Image
+# scripts/synthesize_audio.py
 import os
 from datetime import datetime
-import pytz
+import subprocess
 
-def ocr_image(image_path):
-    try:
-        text = pytesseract.image_to_string(Image.open(image_path), lang='chi_tra')
-        return text.strip()
-    except pytesseract.TesseractNotFoundError:
-        print("❌ 找不到 Tesseract，可透過 sudo apt install tesseract-ocr 安裝")
-    except pytesseract.TesseractError as e:
-        print(f"❌ Tesseract 執行錯誤：{e}")
-    except Exception as e:
-        print(f"❌ 其他錯誤：{e}")
-    return ""
+VOICE = "zh-TW-YunJheNeural"
+RATE = "+15%"  # 較自然的語速
 
-def save_text(date_str, text):
-    output_dir = os.path.join("docs", "podcast", date_str)
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "script.txt")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(text)
-    print(f"✅ 已儲存逐字稿至 {output_path}")
-    return output_path
+def synthesize(text_path, output_path):
+    with open(text_path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    if not text.strip():
+        print("❌ 文字稿為空，跳過合成")
+        return
+
+    command = [
+        "edge-tts",
+        "--voice", VOICE,
+        "--rate", RATE,
+        "--text", text,
+        "--write-media", output_path
+    ]
+    print(f"🎙️ 開始語音合成：{output_path}")
+    subprocess.run(command, check=True)
+    print(f"✅ 語音合成完成：{output_path}")
 
 def main():
-    tz = pytz.timezone("Asia/Taipei")
-    today = datetime.now(tz).strftime("%Y%m%d")
-    image_path = os.path.join("docs", "img", f"{today}.jpg")
+    today = datetime.now().strftime("%Y%m%d")
+    script_path = f"docs/podcast/{today}/script.txt"
+    audio_path = f"docs/podcast/{today}/audio.mp3"
 
-    print(f"📷 開始辨識圖片：{image_path}")
-    if not os.path.exists(image_path):
-        print(f"❌ 找不到圖片：{image_path}")
-        save_text(today, "")
+    if not os.path.exists(script_path):
+        print(f"❌ 找不到 script.txt：{script_path}")
         return
 
-    text = ocr_image(image_path)
-    if not text:
-        print("⚠️ 無法辨識出文字，將建立空的逐字稿")
-        save_text(today, "")
-        return
-
-    save_text(today, text)
+    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+    synthesize(script_path, audio_path)
 
 if __name__ == "__main__":
     main()
