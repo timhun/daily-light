@@ -34,7 +34,7 @@ jobs:
         run: python scripts/ocr_image_to_text.py
 
       - name: Synthesize audio using Edge-TTS
-        run: python scripts/text_to_speech_edge.py
+        run: python scripts/synthesize_audio.py
 
       - name: Upload MP3 to Backblaze B2
         run: python scripts/upload_to_b2.py
