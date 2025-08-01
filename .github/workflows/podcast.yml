@@ -1,56 +1,228 @@
-name: Daily Podcast Light
+name: Daily Podcast Light Generator
 
 on:
-  schedule:
-    # 台灣時間早上 6 點（UTC+8 → UTC 22:00）
-    - cron: '0 22 * * *'
-    # 台灣時間晚上 6 點（UTC+8 → UTC 10:00）
-    - cron: '0 10 * * *'
-  workflow_dispatch:
+schedule:
+# 每天台灣早上 6:00 (UTC-8, 所以是 UTC 22:00 前一天)
+- cron: ‘0 22 * * *’
+# 每天台灣晚上 6:00 (UTC-8, 所以是 UTC 10:00)
+- cron: ‘0 10 * * *’
+workflow_dispatch:
+inputs:
+session_type:
+description: ‘Session type (morning/evening/both)’
+required: true
+default: ‘both’
+type: choice
+options:
+- morning
+- evening
+- both
+
+env:
+TZ: ‘Asia/Taipei’
+B2_APPLICATION_KEY_ID: ${{ secrets.B2_APPLICATION_KEY_ID }}
+B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 jobs:
-  generate-podcast:
-    runs-on: ubuntu-latest
+determine-session:
+runs-on: ubuntu-latest
+outputs:
+should_run_morning: ${{ steps.determine.outputs.should_run_morning }}
+should_run_evening: ${{ steps.determine.outputs.should_run_evening }}
+date_str: ${{ steps.determine.outputs.date_str }}
+steps:
+- name: Determine session type
+id: determine
+run: |
+if [ “${{ github.event_name }}” = “workflow_dispatch” ]; then
+case “${{ github.event.inputs.session_type }}” in
+“morning”)
+echo “should_run_morning=true” >> $GITHUB_OUTPUT
+echo “should_run_evening=false” >> $GITHUB_OUTPUT
+;;
+“evening”)
+echo “should_run_morning=false” >> $GITHUB_OUTPUT
+echo “should_run_evening=true” >> $GITHUB_OUTPUT
+;;
+“both”)
+echo “should_run_morning=true” >> $GITHUB_OUTPUT
+echo “should_run_evening=true” >> $GITHUB_OUTPUT
+;;
+esac
+else
+# 根據 cron 時間判斷
+current_hour=$(date -u +%H)
+if [ “$current_hour” = “22” ]; then
+# UTC 22:00 = 台灣早上 6:00 (次日)
+echo “should_run_morning=true” >> $GITHUB_OUTPUT
+echo “should_run_evening=false” >> $GITHUB_OUTPUT
+elif [ “$current_hour” = “10” ]; then
+# UTC 10:00 = 台灣晚上 6:00
+echo “should_run_morning=false” >> $GITHUB_OUTPUT
+echo “should_run_evening=true” >> $GITHUB_OUTPUT
+fi
+fi
 
-    env:
-      VOICE_NAME: zh-TW-YunJheNeural
-      B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
-      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-      TESSDATA_PREFIX: /usr/share/tesseract-ocr/5/tessdata
+```
+      # 生成台灣時間的日期字串
+      echo "date_str=$(TZ=Asia/Taipei date +%Y%m%d)" >> $GITHUB_OUTPUT
+```
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+generate-morning:
+needs: determine-session
+if: needs.determine-session.outputs.should_run_morning == ‘true’
+runs-on: ubuntu-latest
+steps:
+- name: Checkout repository
+uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+```
+  - name: Set up Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.11'
 
-      - name: Install system dependencies (Tesseract + Chinese)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim libtesseract-dev
+  - name: Install dependencies
+    run: |
+      pip install -r requirements.txt
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+  - name: Download morning image
+    run: |
+      # 這裡需要根據您的圖片來源調整
+      # 示例：從特定 URL 下載或使用預設圖片
+      mkdir -p images
+      # 如果有固定的圖片來源 API，在這裡下載
+      # curl -o images/morning_${{ needs.determine-session.outputs.date_str }}.jpg "YOUR_IMAGE_API_URL"
+      
+      # 暫時使用示例圖片（您需要根據實際情況調整）
+      echo "Please configure morning image source in workflow"
 
-      - name: Run OCR and generate morning/evening script
-        run: python scripts/ocr_image_to_text.py
+  - name: OCR morning image to text
+    run: |
+      python ocr_image_to_text.py \
+        --input images/morning_${{ needs.determine-session.outputs.date_str }}.jpg \
+        --output morning.txt \
+        --session morning
 
-      - name: Synthesize audio using Edge-TTS
-        run: python scripts/synthesize_audio.py
+  - name: Generate morning audio
+    run: |
+      python synthesize_audio.py \
+        --input morning.txt \
+        --output morning_${{ needs.determine-session.outputs.date_str }}.mp3 \
+        --session morning
 
-      - name: Upload MP3 to B2
-        run: python scripts/upload_to_b2.py
+  - name: Upload morning MP3 to B2
+    run: |
+      python upload_to_b2.py \
+        --file morning_${{ needs.determine-session.outputs.date_str }}.mp3 \
+        --remote-path podcasts/morning/ \
+        --session morning \
+        --date ${{ needs.determine-session.outputs.date_str }}
 
-      - name: Generate RSS feed
-        run: python scripts/generate_rss.py
+  - name: Update morning RSS
+    run: |
+      python update_rss.py \
+        --session morning \
+        --date ${{ needs.determine-session.outputs.date_str }} \
+        --audio-url "https://your-b2-domain.com/podcasts/morning/morning_${{ needs.determine-session.outputs.date_str }}.mp3"
 
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/
-          git commit -m "🔁 Update Daily Light podcast"
-          git push
+  - name: Upload artifacts
+    uses: actions/upload-artifact@v4
+    with:
+      name: morning-content-${{ needs.determine-session.outputs.date_str }}
+      path: |
+        morning.txt
+        morning_${{ needs.determine-session.outputs.date_str }}.mp3
+      retention-days: 7
+```
+
+generate-evening:
+needs: determine-session
+if: needs.determine-session.outputs.should_run_evening == ‘true’
+runs-on: ubuntu-latest
+steps:
+- name: Checkout repository
+uses: actions/checkout@v4
+
+```
+  - name: Set up Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.11'
+
+  - name: Install dependencies
+    run: |
+      pip install -r requirements.txt
+
+  - name: Download evening image
+    run: |
+      mkdir -p images
+      # 這裡需要根據您的圖片來源調整
+      # curl -o images/evening_${{ needs.determine-session.outputs.date_str }}.jpg "YOUR_EVENING_IMAGE_API_URL"
+      echo "Please configure evening image source in workflow"
+
+  - name: OCR evening image to text
+    run: |
+      python ocr_image_to_text.py \
+        --input images/evening_${{ needs.determine-session.outputs.date_str }}.jpg \
+        --output evening.txt \
+        --session evening
+
+  - name: Generate evening audio
+    run: |
+      python synthesize_audio.py \
+        --input evening.txt \
+        --output evening_${{ needs.determine-session.outputs.date_str }}.mp3 \
+        --session evening
+
+  - name: Upload evening MP3 to B2
+    run: |
+      python upload_to_b2.py \
+        --file evening_${{ needs.determine-session.outputs.date_str }}.mp3 \
+        --remote-path podcasts/evening/ \
+        --session evening \
+        --date ${{ needs.determine-session.outputs.date_str }}
+
+  - name: Update evening RSS
+    run: |
+      python update_rss.py \
+        --session evening \
+        --date ${{ needs.determine-session.outputs.date_str }} \
+        --audio-url "https://your-b2-domain.com/podcasts/evening/evening_${{ needs.determine-session.outputs.date_str }}.mp3"
+
+  - name: Upload artifacts
+    uses: actions/upload-artifact@v4
+    with:
+      name: evening-content-${{ needs.determine-session.outputs.date_str }}
+      path: |
+        evening.txt
+        evening_${{ needs.determine-session.outputs.date_str }}.mp3
+      retention-days: 7
+```
+
+cleanup:
+needs: [determine-session, generate-morning, generate-evening]
+if: always()
+runs-on: ubuntu-latest
+steps:
+- name: Cleanup temporary files
+run: |
+echo “Cleaning up temporary files…”
+# 清理任何臨時檔案
+
+```
+  - name: Commit RSS updates
+    if: needs.determine-session.outputs.should_run_morning == 'true' || needs.determine-session.outputs.should_run_evening == 'true'
+    uses: actions/checkout@v4
+    
+  - name: Push RSS updates
+    if: needs.determine-session.outputs.should_run_morning == 'true' || needs.determine-session.outputs.should_run_evening == 'true'
+    run: |
+      git config --local user.email "action@github.com"
+      git config --local user.name "GitHub Action"
+      git add -A
+      git diff --staged --quiet || git commit -m "Update RSS feeds - ${{ needs.determine-session.outputs.date_str }}"
+      git push
+```
