@@ -1,30 +1,51 @@
 name: Daily Podcast Light
+
 on:
   schedule:
-    - cron: '0 0 * * *' # 每日 UTC 00:00 執行
+    - cron: '0 0 * * *'  # 每日台灣上午 8 點（UTC+0 的 00:00）
+  workflow_dispatch:      # 手動觸發也可
+
 jobs:
   generate-podcast:
     runs-on: ubuntu-latest
+
+    env:
+      VOICE_NAME: zh-TW-YunJheNeural
+      B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      TESSDATA_PREFIX: /usr/share/tesseract-ocr/5/tessdata
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
-      - name: Install dependencies
+          python-version: '3.11'
+
+      - name: Install system dependencies (Tesseract)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra
+
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
-      - name: Run OCR
+
+      - name: Run OCR and save script
         run: python scripts/ocr_image_to_text.py
-      - name: Synthesize audio
-        run: python scripts/synthesize_audio.py
-      - name: Upload to B2
+
+      - name: Synthesize audio using Edge-TTS
+        run: python scripts/text_to_speech_edge.py
+
+      - name: Upload MP3 to Backblaze B2
         run: python scripts/upload_to_b2.py
-      - name: Generate RSS
+
+      - name: Generate RSS feed
         run: python scripts/generate_rss.py
-      - name: Commit changes
+
+      - name: Commit and push changes
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/
-          git commit -m "Update daily podcast"
+          git commit -m "🔁 Update daily light podcast"
           git push
