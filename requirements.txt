@@ -4,13 +4,17 @@ requests
 edge-tts
 opencc-python-reimplemented
 pytesseract
-Pillow==9.5.0
 b2sdk
 boto3
 beautifulsoup4
 python-dateutil
 lxml
+
+# 固定與 paddleocr 相容的版本
 numpy==1.23.5
 opencv-python==4.6.0.66
+Pillow>=10.0.0
+
+# OCR 模組
 paddleocr==2.7.0.3
-# paddlepaddle 安裝於 .yml，不需列入此處
+paddlepaddle==2.5.0
