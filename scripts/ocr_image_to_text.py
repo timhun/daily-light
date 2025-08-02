@@ -14,7 +14,7 @@ from utils import load_config, get_date_string, ensure_directory, log_message
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
-DEBUG_SAVE = True  # 設定是否儲存分割圖片
+DEBUG_SAVE = True  # 是否儲存分割圖像以便 debug
 
 class DailyLightOCR:
     def __init__(self):
@@ -27,11 +27,8 @@ class DailyLightOCR:
             if image is None:
                 raise ValueError(f"無法讀取圖片: {image_path}")
 
-            # 轉為 RGB 並用 PIL 處理
             pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-
-            # 增強對比與亮度
-            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.5)
+            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.6)
             pil_image = ImageEnhance.Brightness(pil_image).enhance(1.2)
 
             return pil_image
@@ -58,23 +55,27 @@ class DailyLightOCR:
             result = self.ocr.ocr(img_np, cls=True)
             lines = []
             for line in result[0]:
-                text = line[1][0]
-                lines.append(text.strip())
-            return self.clean_text('\n'.join(lines))
+                text = line[1][0].strip()
+                if len(text) >= 2:
+                    lines.append(text)
+            return self.clean_and_merge(lines)
         except Exception as e:
             log_message(f"OCR 辨識錯誤: {str(e)}", "ERROR")
             return ""
 
-    def clean_text(self, raw_text):
-        """清理段落與符號，避免單字重複與亂碼"""
-        lines = raw_text.splitlines()
-        cleaned = []
+    def clean_and_merge(self, lines):
+        """清理段落並合併為適合語音朗讀的長段落"""
+        merged = ''
         for line in lines:
-            line = line.strip()
-            if len(line) < 2 or re.match(r'^[\W\d_]+$', line):  # 避免雜訊
+            # 清除亂碼與不明符號
+            line = re.sub(r'[^\u4e00-\u9fa5，。、「」！？：；…]', '', line)
+            if not line:
                 continue
-            cleaned.append(line)
-        return '\n'.join(cleaned)
+            # 若不是標點結尾，補上句點
+            if not re.search(r'[。！？；]$', line):
+                line += '。'
+            merged += line
+        return merged.strip()
 
     def process_daily_image(self, date_str=None):
         if not date_str:
@@ -97,17 +98,17 @@ class DailyLightOCR:
         output_dir = os.path.join(OUTPUT_DIR, date_str)
         ensure_directory(output_dir)
 
-        if morning_text.strip():
+        if morning_text:
             with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
-                f.write(morning_text.strip())
+                f.write(morning_text)
             log_message(f"晨間文本已保存: {output_dir}/morning.txt")
 
-        if evening_text.strip():
+        if evening_text:
             with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
-                f.write(evening_text.strip())
+                f.write(evening_text)
             log_message(f"晚間文本已保存: {output_dir}/evening.txt")
 
-        if not morning_text.strip() and not evening_text.strip():
+        if not morning_text and not evening_text:
             for period in ["morning", "evening"]:
                 with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
                     f.write("今日無內容")
