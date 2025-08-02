@@ -2,15 +2,15 @@ pytz
 feedgen
 requests
 edge-tts
-pillow
 opencc-python-reimplemented
 pytesseract
+Pillow==9.5.0
 b2sdk
 boto3
 beautifulsoup4
 python-dateutil
 lxml
-opencv-python==4.6.0.66
 numpy==1.23.5
+opencv-python==4.6.0.66
 paddleocr==2.7.0.3
-paddlepaddle==2.5.0
+# paddlepaddle 安裝於 .yml，不需列入此處
