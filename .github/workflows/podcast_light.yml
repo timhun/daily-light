@@ -2,8 +2,8 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點（UTC 22:00）
-    - cron: '10 10 * * *'  # 台灣晚上 6 點（UTC 10:10）
+    - cron: '0 22 * * *'   # 台灣早上 6 點 = UTC 前一天 22:00
+    - cron: '10 10 * * *'  # 台灣晚上 6 點 = UTC 當天 10:10
   workflow_dispatch:
 
 jobs:
@@ -26,17 +26,10 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Fix ABI conflict: force numpy + opencv to stable versions
+    - name: Install Python packages from requirements.txt
       run: |
         pip install --upgrade pip
-        pip install numpy==1.23.5
-        pip uninstall -y opencv-python opencv-python-headless
-        pip install opencv-python==4.7.0.72
-
-    - name: Install Python packages
-      run: |
-        pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
-        pip install Pillow pytesseract edge-tts
+        pip install -r requirements.txt
 
     - name: 顯示目錄與圖片列表
       run: |
