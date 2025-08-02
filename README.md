@@ -1,75 +1,48 @@
-生成一個github《幫幫忙說每日亮光》Podcast 專案的完整專案架構與工作流程（整合 OCR、晨晚分段、語音合成、B2 上傳、RSS 產出）：
-專案目錄結構
-.
-├── docs/
-│   ├── img/                      # 每日圖片來源（格式：YYYYMMDD.jpg）
-│   │   └── 20250801.jpg
-│   ├── podcast/
-│   │   └── 20250801/
-│   │       ├── morning.txt       # 晨的逐字稿
-│   │       ├── evening.txt       # 晚的逐字稿
-│   │       ├── morning.mp3       # 晨的音檔
-│   │       ├── evening.mp3       # 晚的音檔
-│   └── rss/
-│       └── podcast.xml           # 合併後的 RSS feed
-│
-├── scripts/
-│   ├── ocr_image_to_text.py      # OCR 辨識並分成晨/晚
-│   ├── text_to_speech_edge.py    # 語音合成（使用 edge-tts）
-│   ├── upload_to_b2.py           # 上傳至 B2
-│   ├── generate_rss.py           # 產生 RSS feed
-│
-├── .github/
-│   └── workflows/
-│       └── podcast_light.yml     # GitHub Actions 自動化流程
-│
-├── requirements.txt              # Python 套件依賴
-└── README.md
+# 《幫幫忙說每日亮光》Podcast 自動化專案
 
-運作流程摘要
-每天 06:00 與 18:00（台灣時間）自動觸發 GitHub Actions
+[![Daily Light Podcast Generator](https://github.com/timhun/daily-light/actions/workflows/podcast_light.yml/badge.svg)](https://github.com/timhun/daily-light/actions/workflows/podcast_light.yml)
 
-GitHub Actions 使用 podcast_light.yml 自動啟動流程
+## 專案概述
 
-OCR 辨識圖片（ocr_image_to_text.py）
+這是一個全自動化的 Podcast 生成系統，每日自動將《每日亮光》的圖片內容轉換為語音節目。
 
-每天只有一張圖：docs/img/YYYYMMDD.jpg
+### 功能特色
 
-自動旋轉、增強、分成上下兩段
+- 🔄 **全自動化**: 每日自動執行，無需人工干預
+- 📱 **OCR 識別**: 自動識別圖片中的中文文字
+- 🎙️ **語音合成**: 使用 Microsoft Edge TTS 生成自然語音
+- ☁️ **雲端存儲**: 音檔上傳至 Backblaze B2
+- 📡 **RSS 發布**: 自動生成並更新 RSS Feed
+- 🌐 **多平台**: 支援 Apple Podcasts、Spotify 等平台
 
-若偵測出「●月●日．晨」和「●月●日．晚」關鍵字，就輸出為：
+### 執行時間
 
-docs/podcast/YYYYMMDD/morning.txt
+- **晨間**: 每日 06:00 (台灣時間)
+- **晚間**: 每日 18:00 (台灣時間)
 
-docs/podcast/YYYYMMDD/evening.txt
+創建儲存庫: https://github.com/timhun/daily-light
+設置 B2 帳號並獲取 API 金鑰
+在 GitHub 設置 Secrets:
 
-若辨識失敗，輸出為 今日無內容
+B2_KEY_ID
+B2_APPLICATION_KEY
 
-語音合成（text_to_speech_edge.py）
 
-分別將 morning.txt 和 evening.txt 生成二個 MP3（使用 edge-tts 語音 zh-TW-YunJheNeural）
+啟用 GitHub Pages (gh-pages 分支)
+上傳所有文件到儲存庫
+上傳測試圖片 (docs/img/YYYYMMDD.jpg)
 
-產出：
+特殊功能：
 
-morning.mp3
+智能圖片處理: 自動旋轉、增強對比度
+中文日期識別: 支援「八月二日」格式
+錯誤處理: 完整的異常處理和日誌記錄
+手動觸發: 支援 workflow_dispatch
+文件驗證: 檢查文件存在性和完整性
 
-evening.mp3
+🎯 使用方式
 
-上傳至 B2（upload_to_b2.py）(B2_BUCKET_NAME: daily-light)
-
-上傳生成的 mp3 檔案至 B2 Bucket
-
-回傳公開下載網址
-
-生成 RSS（generate_rss.py）
-
-將 morning 和 evening 的音檔與文字稿合併為單一 RSS feed（podcast.xml）
-
-RSS commit 並推送至 GitHub Pages
-
-commit 更新後的 docs/rss/podcast.xml
-
-自動同步至 Apple Podcast、Spotify 等平台
-
-email: tim.oneway@gmail.com
-主持人:幫幫忙
+每日上傳圖片到 docs/img/YYYYMMDD.jpg
+系統自動在 06:00 和 18:00 執行
+生成的 Podcast 會自動發布到 RSS Feed
+用戶可透過 RSS 訂閱: https://timhun.github.io/daily-light/rss/podcast.xml
