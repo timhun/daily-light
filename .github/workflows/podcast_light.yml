@@ -2,10 +2,9 @@ name: 每日亮光 Podcast 自動化流程
 
 on:
   schedule:
-    # 每天台灣時間 06:00 與 18:00（UTC 22:00 與 10:00）
-    - cron: '0 22 * * *'
-    - cron: '0 10 * * *'
-  workflow_dispatch:  # 手動觸發
+    - cron: '0 22 * * *'  # 台灣早上6點
+    - cron: '0 10 * * *'  # 台灣晚上6點
+  workflow_dispatch:
 
 env:
   TZ: Asia/Taipei
@@ -15,116 +14,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: ✅ Checkout repository
+    - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
 
-    - name: 🐍 Set up Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
-    - name: 🧱 Install system dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim \
-                                libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 ffmpeg
+        sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
+        sudo apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 ffmpeg
 
-    - name: 📦 Install Python dependencies
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: 🛠️ Set up Git config
+    - name: Print image list for debug
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        echo "目前目錄:"
+        pwd
+        echo "圖片清單:"
+        ls -l docs/img
 
-    - name: 🗓️ Get current date & hour
-      id: date
-      run: |
-        echo "date=$(TZ=Asia/Taipei date +'%Y%m%d')" >> $GITHUB_OUTPUT
-        echo "hour=$(TZ=Asia/Taipei date +'%H')" >> $GITHUB_OUTPUT
-
-    - name: 🔍 Check if image exists
-      id: check_image
-      run: |
-        IMAGE_PATH="docs/img/${{ steps.date.outputs.date }}.jpg"
-        if [ -f "$IMAGE_PATH" ]; then
-          echo "image_exists=true" >> $GITHUB_OUTPUT
-          echo "找到圖片: $IMAGE_PATH"
-        else
-          echo "image_exists=false" >> $GITHUB_OUTPUT
-          echo "圖片不存在: $IMAGE_PATH"
-        fi
-    - name: List current directory & check image
-      run: |
-            echo "目前目錄:"
-            pwd
-            echo "圖片清單:"
-            ls -l docs/img
-
-    - name: 🧠 OCR image to text
-      if: steps.check_image.outputs.image_exists == 'true'
+    - name: OCR Image Processing
       run: |
         echo "開始 OCR 處理..."
-        cd scripts
-        python ocr_image_to_text.py
+        python scripts/ocr_image_to_text.py
 
-    - name: 🗣️ Generate MP3 via edge-tts
-      if: steps.check_image.outputs.image_exists == 'true'
+    - name: Generate Speech
       run: |
         echo "開始語音生成..."
-        cd scripts
-        python text_to_speech_edge.py
+        python scripts/text_to_speech_edge.py
 
-    - name: ☁️ Upload to Backblaze B2
-      if: steps.check_image.outputs.image_exists == 'true'
+    - name: Upload to B2
       env:
         B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
         B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
       run: |
-        echo "開始上傳至 B2..."
-        cd scripts
-        python upload_to_b2.py
+        echo "開始上傳到 B2..."
+        python scripts/upload_to_b2.py
 
-    - name: 📻 Generate RSS feed
+    - name: Generate RSS Feed
       run: |
-        echo "開始產生 RSS feed..."
-        cd scripts
-        python generate_rss.py
+        echo "開始生成 RSS Feed..."
+        python scripts/generate_rss.py
 
-    - name: 🔎 Check if any file changed
-      id: verify_changed_files
+    - name: Commit and push changes
       run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
-        else
-          echo "changed=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: ✅ Commit & Push changes
-      if: steps.verify_changed_files.outputs.changed == 'true'
-      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
         git add docs/
-        git commit -m "🔁 Auto-generate podcast for ${{ steps.date.outputs.date }} ($(TZ=Asia/Taipei date +'%H:%M'))"
-        git push
-
-    - name: 🚀 Deploy to GitHub Pages
-      if: steps.verify_changed_files.outputs.changed == 'true'
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs
-        publish_branch: gh-pages
-        force_orphan: true
-
-    - name: 🎉 Notify completion
-      run: |
-        echo "=== ✅ 工作流程完成 ==="
-        echo "📅 日期: ${{ steps.date.outputs.date }}"
-        echo "🕒 時間: $(TZ=Asia/Taipei date)"
-        echo "🖼️ 圖片存在: ${{ steps.check_image.outputs.image_exists }}"
-        echo "📤 有變更推送: ${{ steps.verify_changed_files.outputs.changed }}"
+        if git diff --cached --quiet; then
+          echo "沒有變更"
+        else
+          git commit -m "🎧 更新每日亮光 Podcast $(TZ=Asia/Taipei date)"
+          git push
+        fi
