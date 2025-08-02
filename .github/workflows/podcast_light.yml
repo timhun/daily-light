@@ -26,10 +26,11 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Install Python packages from requirements.txt
+    - name: Install Python packages (fixed versions)
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
+        pip install paddlepaddle==2.5.0
 
     - name: 顯示目錄與圖片列表
       run: |
