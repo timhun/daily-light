@@ -29,12 +29,10 @@ jobs:
     - name: Install Python packages (fixed versions)
       run: |
         pip install --upgrade pip
-        # 解決 numpy / opencv 相容問題
-        pip install numpy==1.23.5
-        pip install opencv-python==4.7.0.72
-        # 安裝 PaddleOCR 與 PaddlePaddle（穩定相容版本）
+        pip uninstall -y numpy
+        pip install numpy==1.23.5 --force-reinstall
+        pip install opencv-python==4.7.0.72 --force-reinstall
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
-        # 其他依賴
         pip install Pillow pytesseract edge-tts
 
     - name: 顯示目錄與圖片列表
