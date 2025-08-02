@@ -2,16 +2,16 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點
-    - cron: '10 10 * * *'  # 台灣晚上 6 點
+    - cron: '0 22 * * *'   # 台灣早上 6 點 = UTC 前一天 22:00
+    - cron: '10 10 * * *'  # 台灣晚上 6 點 = UTC 當天 10:10
   workflow_dispatch:
 
 jobs:
   generate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Python
@@ -19,31 +19,29 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Install system dependencies (libssl1.1 修正 + PaddleOCR 前置)
+    - name: Install system dependencies
       run: |
         sudo apt-get update
+        sudo apt-get install -y \
+          ffmpeg libgl1 libglib2.0-0 \
+          tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-        # 安裝必要套件
-        sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
-
-        # 補 libssl1.1（來自 Debian snapshot）
-        wget http://snapshot.debian.org/archive/debian/20230201T033210Z/pool/main/o/openssl1.1/libssl1.1_1.1.1n-0+deb11u3_amd64.deb
-        sudo dpkg -i libssl1.1_1.1.1n-0+deb11u3_amd64.deb || true
-
-    - name: Install Python packages
+    - name: Install Python packages (fixed versions)
       run: |
         pip install --upgrade pip
+        pip install numpy==1.23.5
+        pip install opencv-python==4.7.0.72
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
-        pip install opencv-python Pillow numpy pytesseract edge-tts
+        pip install Pillow pytesseract edge-tts
 
-    - name: Show current directory and image list
+    - name: 顯示目錄與圖片列表
       run: |
         echo "目前目錄:"
         pwd
         echo "圖片清單:"
         ls -lh docs/img
 
-    - name: 開始 OCR 處理
+    - name: OCR 處理
       run: |
         echo "開始 OCR 處理..."
         python scripts/ocr_image_to_text.py
@@ -53,10 +51,10 @@ jobs:
         echo "開始語音合成..."
         python scripts/text_to_speech_edge.py
 
-    - name: Git commit and push
+    - name: Commit and Push to GitHub
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
         git add --all
-        git commit -m "🎙️ Auto update for $(date +'%Y%m%d (%H:%M)')" || echo "No changes"
+        git commit -m "🎙️ Auto update for $(date +'%Y%m%d (%H:%M)')" || echo "No changes to commit"
         git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
