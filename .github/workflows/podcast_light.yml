@@ -11,26 +11,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: 下載程式碼
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: 安裝 Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
-    - name: Install system dependencies
+    - name: 安裝系統套件
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
+        sudo apt-get install -y \
+          ffmpeg \
+          libgl1 \
+          libglib2.0-0 \
+          tesseract-ocr \
+          tesseract-ocr-chi-tra \
+          tesseract-ocr-chi-sim
 
-    - name: Install Python packages
+    - name: 安裝 Python 套件
       run: |
         pip install --upgrade pip
+        pip install numpy==1.23.5
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
-        pip install opencv-python Pillow numpy pytesseract edge-tts
+        pip install opencv-python Pillow pytesseract edge-tts
 
-    - name: Show working directory and image list
+    - name: 顯示目錄與圖片清單
       run: |
         echo "目前目錄:"
         pwd
@@ -47,7 +54,7 @@ jobs:
         echo "開始語音合成..."
         python scripts/text_to_speech_edge.py
 
-    - name: Git commit and push
+    - name: Git commit 並推送
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
