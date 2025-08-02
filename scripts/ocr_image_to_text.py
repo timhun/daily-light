@@ -5,9 +5,10 @@ import numpy as np
 from PIL import Image, ImageEnhance
 import pytesseract
 import re
+
 from utils import load_config, get_date_string, ensure_directory, chinese_number_to_digit, log_message
 
-# 設定根目錄與路徑
+# 設定根目錄與圖片/輸出目錄
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
@@ -24,15 +25,20 @@ class DailyLightOCR:
 
             pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             pil_image = self.auto_rotate_image(pil_image)
-            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.2)
-            pil_image = ImageEnhance.Brightness(pil_image).enhance(1.1)
+
+            # 輕微調整亮度與對比
+            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.1)
+            pil_image = ImageEnhance.Brightness(pil_image).enhance(1.05)
+
+            # 轉為灰階（不再強化處理）
             gray_image = pil_image.convert('L')
             cv_image = cv2.cvtColor(np.array(gray_image), cv2.COLOR_GRAY2BGR)
-            blurred = cv2.GaussianBlur(cv_image, (1, 1), 0)
-            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-            sharpened = cv2.filter2D(blurred, -1, kernel)
 
-            return Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
+            # 使用雙邊濾波：保留邊緣不模糊字體
+            filtered = cv2.bilateralFilter(cv_image, 9, 75, 75)
+
+            return Image.fromarray(cv2.cvtColor(filtered, cv2.COLOR_BGR2RGB))
+
         except Exception as e:
             log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
             return None
@@ -42,6 +48,7 @@ class DailyLightOCR:
             angles = [0, 90, 180, 270]
             best_angle = 0
             best_confidence = 0
+
             for angle in angles:
                 rotated = image.rotate(angle, expand=True)
                 try:
@@ -54,6 +61,7 @@ class DailyLightOCR:
                             best_angle = angle
                 except:
                     continue
+
             if best_angle != 0:
                 log_message(f"自動旋轉圖片 {best_angle} 度")
                 return image.rotate(best_angle, expand=True)
@@ -68,12 +76,14 @@ class DailyLightOCR:
         lower_half = image.crop((0, height // 2, width, height))
         return upper_half, lower_half
 
-    def ocr_text(self, image):
+    def ocr_text(self, image, part='unknown'):
         try:
-            config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz，。；：！？「」『』（）〈〉《》【】〔〕[]{}一二三四五六七八九十百千萬億零壹貳參肆伍陸柒捌玖拾佰仟萬億兆京垓秭穰溝澗正載極恆河沙阿僧祇那由他不可思議無量大數'
+            config = r'--oem 3 --psm 3'
             text = pytesseract.image_to_string(image, lang='chi_tra', config=config)
             text = re.sub(r'\s+', '\n', text.strip())
-            return re.sub(r'\n+', '\n', text)
+            text = re.sub(r'\n+', '\n', text)
+            log_message(f"{part} OCR 結果:\n{text[:100]}..." if text else f"{part} 無辨識內容")
+            return text
         except Exception as e:
             log_message(f"OCR 識別失敗: {str(e)}", "ERROR")
             return ""
@@ -93,8 +103,12 @@ class DailyLightOCR:
             return False
 
         upper, lower = self.split_image(image)
-        upper_text = self.ocr_text(upper)
-        lower_text = self.ocr_text(lower)
+        upper_text = self.ocr_text(upper, '晨段')
+        lower_text = self.ocr_text(lower, '晚段')
+
+        if not upper_text and not lower_text:
+            log_message("OCR 識別失敗，沒有提取到文字", "ERROR")
+            return False
 
         output_dir = os.path.join(OUTPUT_DIR, date_str)
         ensure_directory(output_dir)
@@ -103,19 +117,20 @@ class DailyLightOCR:
             with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
                 f.write(upper_text.strip())
             log_message(f"晨間文本已保存: {output_dir}/morning.txt")
-        else:
-            with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
-                f.write("今日無內容")
 
         if lower_text.strip():
             with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
                 f.write(lower_text.strip())
             log_message(f"晚間文本已保存: {output_dir}/evening.txt")
-        else:
-            with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
-                f.write("今日無內容")
+
+        if not upper_text.strip() and not lower_text.strip():
+            for period in ["morning", "evening"]:
+                with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
+                    f.write("今日無內容")
+            log_message("創建了默認內容文件")
 
         return True
+
 
 def main():
     try:
