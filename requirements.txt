@@ -1,18 +1,15 @@
-pytz
-feedgen
-requests
-edge-tts
-pillow
-opencc-python-reimplemented
-pytesseract
-Pillow
-b2sdk
-boto3
-beautifulsoup4
-python-dateutil
-lxml
-opencv-python
-numpy
-# PaddleOCR 用於 OCR 辨識
-paddleocr
-# 指定 PaddlePaddle 版本會在 GitHub Actions 中安裝，這裡不必再寫
+pytz==2023.3
+feedgen==0.9.0
+requests==2.31.0
+edge-tts==6.1.10
+pillow==10.2.0
+opencc-python-reimplemented==0.1.7
+pytesseract==0.3.10
+b2sdk==1.21.0
+boto3==1.28.57
+beautifulsoup4==4.12.3
+python-dateutil==2.9.0.post0
+lxml==5.2.1
+numpy==1.23.5
+opencv-python==4.7.0.72
+paddleocr==2.7.0.3
