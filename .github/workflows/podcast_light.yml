@@ -2,8 +2,8 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點 = UTC 前一天 22:00
-    - cron: '10 10 * * *'  # 台灣晚上 6 點 = UTC 當天 10:10
+    - cron: '0 22 * * *'   # 台灣早上 6 點
+    - cron: '10 10 * * *'  # 台灣晚上 6 點
   workflow_dispatch:
 
 jobs:
@@ -19,12 +19,16 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Install system dependencies
+    - name: Install system dependencies (libssl1.1 修正 + PaddleOCR 前置)
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim wget
-        wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
-        sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
+
+        # 安裝必要套件
+        sudo apt-get install -y ffmpeg libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
+
+        # 補 libssl1.1（來自 Debian snapshot）
+        wget http://snapshot.debian.org/archive/debian/20230201T033210Z/pool/main/o/openssl1.1/libssl1.1_1.1.1n-0+deb11u3_amd64.deb
+        sudo dpkg -i libssl1.1_1.1.1n-0+deb11u3_amd64.deb || true
 
     - name: Install Python packages
       run: |
@@ -32,7 +36,7 @@ jobs:
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
         pip install opencv-python Pillow numpy pytesseract edge-tts
 
-    - name: 顯示工作目錄與圖片清單
+    - name: Show current directory and image list
       run: |
         echo "目前目錄:"
         pwd
