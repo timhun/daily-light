@@ -3,13 +3,15 @@ import sys
 import cv2
 import numpy as np
 from PIL import Image, ImageEnhance
+import re
 from paddleocr import PaddleOCR
 from utils import load_config, get_date_string, ensure_directory, log_message
 
+# 設定專案根目錄
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
-DEBUG_SAVE = True
+DEBUG_SAVE = True  # 儲存分割圖片與前處理圖片供 debug
 
 class DailyLightOCR:
     def __init__(self):
@@ -17,40 +19,76 @@ class DailyLightOCR:
         self.ocr = PaddleOCR(use_angle_cls=True, lang='ch', use_gpu=False)
 
     def preprocess_image(self, image_path):
-        image = cv2.imread(image_path)
-        if image is None:
-            raise ValueError(f"無法讀取圖片: {image_path}")
-        pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        pil = ImageEnhance.Contrast(pil).enhance(1.5)
-        pil = ImageEnhance.Brightness(pil).enhance(1.2)
-        return pil
+        try:
+            image = cv2.imread(image_path)
+            if image is None:
+                raise ValueError(f"無法讀取圖片: {image_path}")
+
+            # 自動旋轉（若有 EXIF 或非正向圖片）
+            if image.shape[0] < image.shape[1]:
+                image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            # 灰階處理
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            # 銳化（Unsharp Mask）
+            blur = cv2.GaussianBlur(gray, (0, 0), sigmaX=3)
+            sharpened = cv2.addWeighted(gray, 1.5, blur, -0.5, 0)
+
+            # 對比增強
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            contrast = clahe.apply(sharpened)
+
+            # 自適應二值化
+            binary = cv2.adaptiveThreshold(contrast, 255,
+                                           cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                           cv2.THRESH_BINARY, 25, 15)
+
+            # 儲存前處理圖片供 debug
+            if DEBUG_SAVE:
+                debug_dir = os.path.join(OUTPUT_DIR, get_date_string())
+                ensure_directory(debug_dir)
+                cv2.imwrite(os.path.join(debug_dir, "debug_preprocessed.jpg"), binary)
+
+            # 回傳 PIL 物件
+            return Image.fromarray(binary)
+        except Exception as e:
+            log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
+            return None
 
     def split_image(self, image, date_str):
-        w, h = image.size
-        upper = image.crop((0, 0, w, h // 2))
-        lower = image.crop((0, h // 2, w, h))
+        width, height = image.size
+        upper_half = image.crop((0, 0, width, height // 2))
+        lower_half = image.crop((0, height // 2, width, height))
+
         if DEBUG_SAVE:
             debug_dir = os.path.join(OUTPUT_DIR, date_str)
             ensure_directory(debug_dir)
-            upper.save(os.path.join(debug_dir, "debug_morning.jpg"))
-            lower.save(os.path.join(debug_dir, "debug_evening.jpg"))
-        return upper, lower
+            upper_half.save(os.path.join(debug_dir, "debug_morning.jpg"))
+            lower_half.save(os.path.join(debug_dir, "debug_evening.jpg"))
+
+        return upper_half, lower_half
 
     def ocr_image(self, pil_img):
-        np_img = np.array(pil_img)
-        result = self.ocr.ocr(np_img, cls=True)
-        lines = []
-        for line in result[0]:
-            text = line[1][0]
-            lines.append(text.strip())
-        return self.clean_text('\n'.join(lines))
+        try:
+            img_np = np.array(pil_img)
+            result = self.ocr.ocr(img_np, cls=True)
+            lines = []
+            for line in result[0]:
+                text = line[1][0]
+                lines.append(text.strip())
+            return self.clean_text('\n'.join(lines))
+        except Exception as e:
+            log_message(f"OCR 辨識錯誤: {str(e)}", "ERROR")
+            return ""
 
     def clean_text(self, raw_text):
+        """清理段落與符號，避免單字重複與亂碼"""
         lines = raw_text.splitlines()
         cleaned = []
         for line in lines:
             line = line.strip()
-            if len(line) < 2:
+            if len(line) < 2 or re.match(r'^[\W\d_]+$', line):
                 continue
             cleaned.append(line)
         return '\n'.join(cleaned)
@@ -58,6 +96,7 @@ class DailyLightOCR:
     def process_daily_image(self, date_str=None):
         if not date_str:
             date_str = get_date_string()
+
         image_path = os.path.join(IMG_DIR, f"{date_str}.jpg")
         if not os.path.exists(image_path):
             log_message(f"圖片不存在: {image_path}", "ERROR")
@@ -65,26 +104,29 @@ class DailyLightOCR:
 
         log_message(f"開始處理圖片: {image_path}")
         image = self.preprocess_image(image_path)
+        if image is None:
+            return False
+
         upper, lower = self.split_image(image, date_str)
+        morning_text = self.ocr_image(upper)
+        evening_text = self.ocr_image(lower)
 
-        morning = self.ocr_image(upper)
-        evening = self.ocr_image(lower)
+        output_dir = os.path.join(OUTPUT_DIR, date_str)
+        ensure_directory(output_dir)
 
-        out_dir = os.path.join(OUTPUT_DIR, date_str)
-        ensure_directory(out_dir)
+        if morning_text.strip():
+            with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
+                f.write(morning_text.strip())
+            log_message(f"晨間文本已保存: {output_dir}/morning.txt")
 
-        if morning.strip():
-            with open(os.path.join(out_dir, "morning.txt"), "w", encoding="utf-8") as f:
-                f.write(morning)
-            log_message(f"晨間文本已保存: {out_dir}/morning.txt")
-        if evening.strip():
-            with open(os.path.join(out_dir, "evening.txt"), "w", encoding="utf-8") as f:
-                f.write(evening)
-            log_message(f"晚間文本已保存: {out_dir}/evening.txt")
+        if evening_text.strip():
+            with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
+                f.write(evening_text.strip())
+            log_message(f"晚間文本已保存: {output_dir}/evening.txt")
 
-        if not morning.strip() and not evening.strip():
+        if not morning_text.strip() and not evening_text.strip():
             for period in ["morning", "evening"]:
-                with open(os.path.join(out_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
+                with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
                     f.write("今日無內容")
             log_message("未辨識出內容，已建立預設空白內容")
         return True
