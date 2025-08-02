@@ -49,9 +49,13 @@ def ocr_and_split(date_str):
     # 使用繁體中文語言包 chi_tra
     full_text = pytesseract.image_to_string(processed_img, lang='chi_tra')
 
-    # 使用正則表達式尋找晨和晚的分割點
-    morning_match = re.search(r'八月\s*\d+\s*日\s*．\s*晨', full_text)
-    evening_match = re.search(r'八月\s*\d+\s*日\s*．\s*晚', full_text)
+    # --- 修正開始 ---
+    # 使用更靈活的正則表達式，使其能同時辨識阿拉伯數字與中文數字
+    # 原本: r'八月\s*\d+\s*日\s*．\s*晨'
+    # 修正後:
+    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晨', full_text)
+    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晚', full_text)
+    # --- 修正結束 ---
 
     morning_text = ""
     evening_text = ""
