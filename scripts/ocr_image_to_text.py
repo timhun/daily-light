@@ -1,125 +1,232 @@
 # scripts/ocr_image_to_text.py
-
 import os
-import sys
-from datetime import datetime
+import cv2
+import numpy as np
+from PIL import Image, ImageEnhance
 import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter
 import re
+from utils import load_config, get_date_string, ensure_directory, chinese_number_to_digit, log_message
 
-# 設定 TESSDATA_PREFIX 環境變數 (在 GitHub Actions 中可能需要)
-# os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
+class DailyLightOCR:
+    def __init__(self):
+        self.config = load_config()
+        
+    def preprocess_image(self, image_path):
+        """圖片預處理"""
+        try:
+            # 讀取圖片
+            image = cv2.imread(image_path)
+            if image is None:
+                raise ValueError(f"無法讀取圖片: {image_path}")
+            
+            # 轉換為PIL格式
+            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            
+            # 自動旋轉檢測
+            pil_image = self.auto_rotate_image(pil_image)
+            
+            # 增強對比度和亮度
+            enhancer = ImageEnhance.Contrast(pil_image)
+            pil_image = enhancer.enhance(1.2)
+            
+            enhancer = ImageEnhance.Brightness(pil_image)
+            pil_image = enhancer.enhance(1.1)
+            
+            # 轉換為灰度圖
+            gray_image = pil_image.convert('L')
+            
+            # 轉回OpenCV格式進行進一步處理
+            cv_image = cv2.cvtColor(np.array(gray_image), cv2.COLOR_GRAY2BGR)
+            
+            # 高斯模糊去噪
+            blurred = cv2.GaussianBlur(cv_image, (1, 1), 0)
+            
+            # 銳化
+            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+            sharpened = cv2.filter2D(blurred, -1, kernel)
+            
+            return Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
+            
+        except Exception as e:
+            log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
+            return None
+    
+    def auto_rotate_image(self, image):
+        """自動旋轉圖片"""
+        try:
+            # 嘗試不同角度的旋轉，找到文字識別效果最好的角度
+            angles = [0, 90, 180, 270]
+            best_angle = 0
+            best_confidence = 0
+            
+            for angle in angles:
+                rotated = image.rotate(angle, expand=True)
+                
+                # 使用 pytesseract 獲取置信度
+                try:
+                    data = pytesseract.image_to_data(rotated, lang='chi_tra', output_type=pytesseract.Output.DICT)
+                    confidences = [int(conf) for conf in data['conf'] if int(conf) > 0]
+                    if confidences:
+                        avg_confidence = sum(confidences) / len(confidences)
+                        if avg_confidence > best_confidence:
+                            best_confidence = avg_confidence
+                            best_angle = angle
+                except:
+                    continue
+            
+            if best_angle != 0:
+                log_message(f"自動旋轉圖片 {best_angle} 度")
+                image = image.rotate(best_angle, expand=True)
+            
+            return image
+            
+        except Exception as e:
+            log_message(f"自動旋轉失敗: {str(e)}", "WARNING")
+            return image
+    
+    def split_image(self, image):
+        """將圖片分割為上下兩部分"""
+        width, height = image.size
+        
+        # 分割為上下兩部分
+        upper_half = image.crop((0, 0, width, height // 2))
+        lower_half = image.crop((0, height // 2, width, height))
+        
+        return upper_half, lower_half
+    
+    def ocr_text(self, image):
+        """OCR 文字識別"""
+        try:
+            # 使用繁體中文識別
+            custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz，。；：！？「」『』（）〈〉《》【】〔〕[]{}一二三四五六七八九十百千萬億零壹貳參肆伍陸柒捌玖拾佰仟萬億兆京垓秭穰溝澗正載極恆河沙阿僧祇那由他不可思議無量大數'
+            
+            text = pytesseract.image_to_string(image, lang='chi_tra', config=custom_config)
+            
+            # 清理文字
+            text = re.sub(r'\s+', '\n', text.strip())
+            text = re.sub(r'\n+', '\n', text)
+            
+            return text
+            
+        except Exception as e:
+            log_message(f"OCR 識別失敗: {str(e)}", "ERROR")
+            return ""
+    
+    def extract_date_from_text(self, text):
+        """從文字中提取日期"""
+        # 匹配中文日期格式，如「八月二日」
+        pattern = r'([一二三四五六七八九十]+)月([一二三四五六七八九十]+)日'
+        matches = re.findall(pattern, text)
+        
+        if matches:
+            month, day = matches[0]
+            # 轉換中文數字為阿拉伯數字
+            month_num = chinese_number_to_digit(month)
+            day_num = chinese_number_to_digit(day)
+            
+            try:
+                month_int = int(month_num)
+                day_int = int(day_num)
+                return month_int, day_int
+            except ValueError:
+                pass
+        
+        return None, None
+    
+    def identify_segment_type(self, text):
+        """識別文本段落類型（晨或晚）"""
+        if '晨' in text or '早' in text:
+            return 'morning'
+        elif '晚' in text or '夜' in text or '晚上' in text:
+            return 'evening'
+        else:
+            # 根據位置判斷，上半部分通常是晨
+            return 'unknown'
+    
+    def process_daily_image(self, date_str=None):
+        """處理每日圖片"""
+        if date_str is None:
+            date_str = get_date_string()
+        
+        # 圖片路径
+        img_path = os.path.join('docs', 'img', f'{date_str}.jpg')
+        
+        if not os.path.exists(img_path):
+            log_message(f"圖片不存在: {img_path}", "ERROR")
+            return False
+        
+        log_message(f"開始處理圖片: {img_path}")
+        
+        # 預處理圖片
+        processed_image = self.preprocess_image(img_path)
+        if processed_image is None:
+            return False
+        
+        # 分割圖片
+        upper_half, lower_half = self.split_image(processed_image)
+        
+        # OCR 識別
+        upper_text = self.ocr_text(upper_half)
+        lower_text = self.ocr_text(lower_half)
+        
+        if not upper_text and not lower_text:
+            log_message("OCR 識別失敗，沒有提取到文字", "ERROR")
+            return False
+        
+        # 確定輸出目錄
+        output_dir = os.path.join('docs', 'podcast', date_str)
+        ensure_directory(output_dir)
+        
+        # 判斷文本類型並保存
+        success = False
+        
+        # 處理上半部分（通常是晨）
+        if upper_text.strip():
+            morning_file = os.path.join(output_dir, 'morning.txt')
+            with open(morning_file, 'w', encoding='utf-8') as f:
+                f.write(upper_text.strip())
+            log_message(f"晨間文本已保存: {morning_file}")
+            success = True
+        
+        # 處理下半部分（通常是晚）
+        if lower_text.strip():
+            evening_file = os.path.join(output_dir, 'evening.txt')
+            with open(evening_file, 'w', encoding='utf-8') as f:
+                f.write(lower_text.strip())
+            log_message(f"晚間文本已保存: {evening_file}")
+            success = True
+        
+        if not success:
+            # 如果都沒有內容，創建默認文件
+            default_content = "今日無內容"
+            for period in ['morning', 'evening']:
+                file_path = os.path.join(output_dir, f'{period}.txt')
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(default_content)
+            log_message("創建了默認內容文件")
+        
+        return success
 
-def process_image(image_path):
-    """
-    對圖片進行增強處理以提高 OCR 辨識率。
-    """
+def main():
+    """主函數"""
     try:
-        img = Image.open(image_path)
-        # 轉換為灰度
-        img = img.convert('L')
-        # 增加對比度
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(2)
-        # 銳化
-        img = img.filter(ImageFilter.SHARPEN)
-        return img
-    except FileNotFoundError:
-        print(f"Error: 圖片檔案未找到 {image_path}")
-        return None
-
-def ocr_and_split(date_str):
-    """
-    主函數，執行 OCR 並將內容分割成晨、晚兩部分。
-    """
-    base_path = os.path.join('docs', 'podcast', date_str)
-    img_path = os.path.join('docs', 'img', f"{date_str}.jpg")
-    
-    print(f"正在處理圖片: {img_path}")
-
-    # 建立輸出目錄
-    os.makedirs(base_path, exist_ok=True)
-    
-    # 處理圖片
-    processed_img = process_image(img_path)
-    if processed_img is None:
-        sys.exit(1)
-
-    # OCR 辨識
-    # 使用繁體中文語言包 chi_tra
-    full_text = pytesseract.image_to_string(processed_img, lang='chi_tra')
-
-    # --- 修正開始 ---
-    # 使用更靈活的正則表達式，使其能同時辨識阿拉伯數字與中文數字
-    # 原本: r'八月\s*\d+\s*日\s*．\s*晨'
-    # 修正後:
-    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晨', full_text)
-    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晚', full_text)
-    # --- 修正結束 ---
-
-    morning_text = ""
-    evening_text = ""
-
-    if morning_match and evening_match:
-        print("偵測到'晨'與'晚'的關鍵字。")
-        # 晨的內容是從 "晨" 關鍵字開始到 "晚" 關鍵字之前
-        morning_start_index = morning_match.end()
-        evening_start_index = evening_match.start()
-        morning_text = full_text[morning_start_index:evening_start_index].strip()
+        ocr_processor = DailyLightOCR()
+        date_str = get_date_string()
         
-        # 晚的內容是從 "晚" 關鍵字開始到結尾
-        evening_text = full_text[evening_match.end():].strip()
+        log_message(f"開始處理 {date_str} 的每日亮光")
         
-    elif morning_match:
-        print("只偵測到'晨'的關鍵字。")
-        morning_text = full_text[morning_match.end():].strip()
+        success = ocr_processor.process_daily_image(date_str)
+        
+        if success:
+            log_message("OCR 處理完成")
+            exit(0)
+        else:
+            log_message("OCR 處理失敗", "ERROR")
+            exit(1)
     
-    elif evening_match:
-        print("只偵測到'晚'的關鍵字。")
-        evening_text = full_text[evening_match.end():].strip()
-
-    else:
-        print("未偵測到'晨'或'晚'的關鍵字，OCR 辨識可能失敗。")
-        # 寫入無內容
-        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
-            f.write("今日無內容")
-        with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
-            f.write("今日無內容")
-        print("已寫入'今日無內容'。")
-        return
-
-    # 清理文字，移除不必要的換行和空白
-    morning_text = re.sub(r'\s+', ' ', morning_text).strip()
-    evening_text = re.sub(r'\s+', ' ', evening_text).strip()
-
-    if morning_text:
-        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
-            f.write(morning_text)
-        print(f"成功寫入 morning.txt，內容長度: {len(morning_text)}")
-    else:
-        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
-            f.write("今日晨間無內容")
-        print("晨間內容為空。")
-
-    if evening_text:
-        with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
-            f.write(evening_text)
-        print(f"成功寫入 evening.txt，內容長度: {len(evening_text)}")
-    else:
-        with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
-            f.write("今日晚間無內容")
-        print("晚間內容為空。")
-
+    except Exception as e:
+        log_message(f"主程序執行失敗: {str(e)}", "ERROR")
+        exit(1)
 
 if __name__ == "__main__":
-    # 如果從命令行傳入日期，則使用該日期，否則使用當前日期
-    if len(sys.argv) > 1:
-        target_date = sys.argv[1]
-    else:
-        # 假設在台灣時區執行
-        from datetime import datetime
-        import pytz
-        tz = pytz.timezone('Asia/Taipei')
-        target_date = datetime.now(tz).strftime('%Y%m%d')
-
-    ocr_and_split(target_date)
+    main()
