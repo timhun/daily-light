@@ -1,13 +1,14 @@
+# scripts/ocr_image_to_text.py
+
 import os
 import sys
 import cv2
 import numpy as np
-from PIL import Image, ImageEnhance
-import re
+from PIL import Image
 from paddleocr import PaddleOCR
-from utils import load_config, get_date_string, ensure_directory, log_message
+from utils import get_date_string, ensure_directory, log_message
 
-# 設定專案根目錄
+# 設定專案根目錄與資料路徑
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
@@ -15,52 +16,55 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
 
 class DailyLightOCR:
     def __init__(self):
-        self.config = load_config()
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='ch')  # 使用中文與角度分類
+        self.ocr = PaddleOCR(use_angle_cls=True, lang="ch")
 
     def preprocess_image(self, image_path):
+        """強化影像前處理：旋轉、對比、去噪"""
         try:
             image = cv2.imread(image_path)
             if image is None:
                 raise ValueError(f"無法讀取圖片: {image_path}")
 
-            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.2)
-            pil_image = ImageEnhance.Brightness(pil_image).enhance(1.1)
-            gray_image = pil_image.convert('L')
+            # 轉為灰階
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-            cv_image = cv2.cvtColor(np.array(gray_image), cv2.COLOR_GRAY2BGR)
-            blurred = cv2.GaussianBlur(cv_image, (1, 1), 0)
-            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-            sharpened = cv2.filter2D(blurred, -1, kernel)
+            # 自動對比與亮度調整（CLAHE）
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(gray)
 
-            return Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
+            # 中值濾波降噪
+            denoised = cv2.medianBlur(enhanced, 3)
+
+            # 回轉為 BGR（PaddleOCR 接收彩色圖）
+            processed = cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR)
+
+            return processed
+
         except Exception as e:
             log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
             return None
 
     def split_image(self, image):
-        width, height = image.size
-        upper_half = image.crop((0, 0, width, height // 2))
-        lower_half = image.crop((0, height // 2, width, height))
-        return upper_half, lower_half
+        """將圖片垂直分成上下兩半"""
+        h, w = image.shape[:2]
+        upper = image[:h//2, :]
+        lower = image[h//2:, :]
+        return upper, lower
 
     def ocr_text(self, image):
+        """使用 PaddleOCR 辨識文字"""
         try:
-            image_np = np.array(image)
-            result = self.ocr.ocr(image_np)
-
-            # 擷取文字
+            result = self.ocr.ocr(image, cls=True)
             lines = []
             for line in result[0]:
                 lines.append(line[1][0])
-            return '\n'.join(lines).strip()
+            return '\n'.join(lines)
         except Exception as e:
-            log_message(f"OCR 識別失敗: {str(e)}", "ERROR")
+            log_message(f"OCR 辨識失敗: {str(e)}", "ERROR")
             return ""
 
     def process_daily_image(self, date_str=None):
-        if not date_str:
+        if date_str is None:
             date_str = get_date_string()
 
         img_path = os.path.join(IMG_DIR, f"{date_str}.jpg")
@@ -75,32 +79,26 @@ class DailyLightOCR:
 
         upper, lower = self.split_image(image)
         upper_text = self.ocr_text(upper)
-        log_message(f"晨段 OCR 結果:\n{upper_text}")
         lower_text = self.ocr_text(lower)
-        log_message(f"晚段 OCR 結果:\n{lower_text}")
 
-        if not upper_text and not lower_text:
-            log_message("OCR 識別失敗，沒有提取到文字", "ERROR")
+        if not upper_text.strip() and not lower_text.strip():
+            log_message("OCR 無辨識結果", "ERROR")
             return False
 
         output_dir = os.path.join(OUTPUT_DIR, date_str)
         ensure_directory(output_dir)
 
         if upper_text.strip():
-            with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
+            morning_path = os.path.join(output_dir, "morning.txt")
+            with open(morning_path, "w", encoding="utf-8") as f:
                 f.write(upper_text.strip())
-            log_message(f"晨間文本已保存: {output_dir}/morning.txt")
+            log_message(f"晨間文本已保存: {morning_path}")
 
         if lower_text.strip():
-            with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
+            evening_path = os.path.join(output_dir, "evening.txt")
+            with open(evening_path, "w", encoding="utf-8") as f:
                 f.write(lower_text.strip())
-            log_message(f"晚間文本已保存: {output_dir}/evening.txt")
-
-        if not upper_text.strip() and not lower_text.strip():
-            for period in ["morning", "evening"]:
-                with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
-                    f.write("今日無內容")
-            log_message("創建了默認內容文件")
+            log_message(f"晚間文本已保存: {evening_path}")
 
         return True
 
