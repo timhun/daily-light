@@ -1,50 +1,87 @@
-name: Daily Podcast Light
+name: 每日亮光 Podcast 自動化流程
 
 on:
+  # 台灣時間每日 06:00 和 18:00 (UTC 22:00 和 10:00) 自動觸發
   schedule:
-    - cron: '0 22,10 * * *'  # 台灣時間 06:00、18:00（UTC 22:00、10:00）
+    - cron: '0 22,10 * * *'
+  # 允許手動觸發
   workflow_dispatch:
 
 jobs:
-  generate-podcast:
+  build-and-publish:
     runs-on: ubuntu-latest
+    
+    # 設定環境變數，讓腳本可以拿到 B2 bucket name
     env:
-      VOICE_NAME: zh-TW-YunJheNeural
+      B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
       B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
-      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-      TESSDATA_PREFIX: /usr/share/tesseract-ocr/5/tessdata
+      B2_APP_KEY: ${{ secrets.B2_APP_KEY }}
+      TZ: Asia/Taipei # 設定時區
 
     steps:
-      - name: Checkout
+      - name:  checkout 專案
         uses: actions/checkout@v4
 
-      - name: Install Tesseract
-        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: 設置 Python 3.9
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: 3.9
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: 安裝 Tesseract OCR 及繁體中文語言包
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-tra
 
-      - name: Run OCR script
-        run: python scripts/ocr_image_to_text.py
+      - name: 安裝 Python 依賴套件
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Generate audio
-        run: python scripts/text_to_speech_edge.py
+      - name: 執行 OCR 辨識
+        id: ocr
+        run: |
+          TODAY=$(date +'%Y%m%d')
+          echo "Processing date: $TODAY"
+          python scripts/ocr_image_to_text.py $TODAY
+          # 檢查 txt 檔案是否產生
+          if [ -f docs/podcast/$TODAY/morning.txt ]; then
+            echo "OCR_SUCCESS=true" >> $GITHUB_OUTPUT
+          else
+            echo "OCR_SUCCESS=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Upload to B2
-        run: python scripts/upload_to_b2.py
+      - name: 語音合成 - 晨
+        if: steps.ocr.outputs.OCR_SUCCESS == 'true'
+        run: |
+          TODAY=$(date +'%Y%m%d')
+          python scripts/text_to_speech_edge.py docs/podcast/$TODAY/morning.txt docs/podcast/$TODAY/morning.mp3
 
-      - name: Generate RSS
+      - name: 語音合成 - 晚
+        if: steps.ocr.outputs.OCR_SUCCESS == 'true'
+        run: |
+          TODAY=$(date +'%Y%m%d')
+          python scripts/text_to_speech_edge.py docs/podcast/$TODAY/evening.txt docs/podcast/$TODAY/evening.mp3
+
+      - name: 上傳音檔至 B2 - 晨
+        if: steps.ocr.outputs.OCR_SUCCESS == 'true'
+        run: |
+          TODAY=$(date +'%Y%m%d')
+          python scripts/upload_to_b2.py docs/podcast/$TODAY/morning.mp3 ${TODAY}_morning.mp3
+
+      - name: 上傳音檔至 B2 - 晚
+        if: steps.ocr.outputs.OCR_SUCCESS == 'true'
+        run: |
+          TODAY=$(date +'%Y%m%d')
+          python scripts/upload_to_b2.py docs/podcast/$TODAY/evening.mp3 ${TODAY}_evening.mp3
+          
+      - name: 產生新的 RSS Feed
         run: python scripts/generate_rss.py
 
-      - name: Commit RSS feed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/rss/podcast.xml
-          git commit -m "🔁 Update daily light podcast"
-          git push
+      - name: Commit 並 Push 更新後的 RSS Feed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Automated: Update podcast RSS feed for ${{ env.TODAY }}"
+          file_pattern: 'docs/rss/podcast.xml'
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"
+          commit_author: "GitHub Actions Bot <actions@github.com>"
