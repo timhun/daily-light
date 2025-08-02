@@ -2,8 +2,8 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點 = UTC 前一天 22:00
-    - cron: '10 10 * * *'  # 台灣晚上 6 點 = UTC 當天 10:10
+    - cron: '0 22 * * *'   # 台灣早上 6 點
+    - cron: '10 10 * * *'  # 台灣晚上 6 點
   workflow_dispatch:
 
 jobs:
@@ -26,13 +26,12 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Install Python packages (fixed versions)
+    - name: Install Python dependencies
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
-        pip install paddlepaddle==2.5.0
 
-    - name: 顯示目錄與圖片列表
+    - name: Show working directory and image list
       run: |
         echo "目前目錄:"
         pwd
@@ -49,7 +48,7 @@ jobs:
         echo "開始語音合成..."
         python scripts/text_to_speech_edge.py
 
-    - name: Commit and Push to GitHub
+    - name: Git commit and push
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
