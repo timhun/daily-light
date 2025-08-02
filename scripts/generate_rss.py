@@ -85,4 +85,97 @@ class RSSGenerator:
             fe.pubDate(pub_date)
             
             # 音頻信息
-            local_audio_path = os.path.join('
+            local_audio_path = os.path.join('docs', 'podcast', date_str, f'{period}.mp3')
+            file_size = self.get_file_size(local_audio_path)
+            duration = self.get_audio_duration(local_audio_path)
+            
+            fe.enclosure(audio_url, str(file_size), 'audio/mpeg')
+            fe.podcast.itunes_duration(duration)
+            fe.podcast.itunes_explicit(False)
+            fe.podcast.itunes_subtitle(f"{'晨間' if period == 'morning' else '晚間'}靈修分享")
+            fe.podcast.itunes_summary(episode_text[:500])
+            
+            log_message(f"已添加集數: {episode_title}")
+            
+        except Exception as e:
+            log_message(f"添加集數失敗: {str(e)}", "ERROR")
+    
+    def generate_rss(self, days_back=30):
+        """生成 RSS Feed"""
+        try:
+            fg = self.create_feed_generator()
+            current_date = get_taiwan_time()
+            
+            # 處理最近 days_back 天的內容
+            for i in range(days_back):
+                check_date = current_date - timedelta(days=i)
+                date_str = check_date.strftime('%Y%m%d')
+                
+                podcast_dir = os.path.join('docs', 'podcast', date_str)
+                
+                if not os.path.exists(podcast_dir):
+                    continue
+                
+                # 檢查上傳記錄
+                upload_record_file = os.path.join(podcast_dir, 'upload_record.json')
+                if not os.path.exists(upload_record_file):
+                    continue
+                
+                try:
+                    with open(upload_record_file, 'r', encoding='utf-8') as f:
+                        upload_records = json.load(f)
+                    
+                    # 添加每個時段的集數
+                    for period in ['morning', 'evening']:
+                        if period in upload_records:
+                            audio_url = upload_records[period]['audio_url']
+                            
+                            # 讀取文本內容
+                            text_file = os.path.join(podcast_dir, f'{period}.txt')
+                            text_content = ""
+                            if os.path.exists(text_file):
+                                with open(text_file, 'r', encoding='utf-8') as f:
+                                    text_content = f.read()
+                            
+                            self.add_episode(fg, date_str, period, audio_url, text_content)
+                
+                except Exception as e:
+                    log_message(f"處理 {date_str} 數據時出錯: {str(e)}", "WARNING")
+                    continue
+            
+            # 生成 RSS 文件
+            rss_dir = os.path.join('docs', 'rss')
+            ensure_directory(rss_dir)
+            
+            rss_file = os.path.join(rss_dir, 'podcast.xml')
+            fg.rss_file(rss_file)
+            
+            log_message(f"RSS Feed 已生成: {rss_file}")
+            return True
+            
+        except Exception as e:
+            log_message(f"RSS 生成失敗: {str(e)}", "ERROR")
+            return False
+
+def main():
+    """主函數"""
+    try:
+        rss_generator = RSSGenerator()
+        
+        log_message("開始生成 RSS Feed")
+        
+        success = rss_generator.generate_rss()
+        
+        if success:
+            log_message("RSS Feed 生成完成")
+            exit(0)
+        else:
+            log_message("RSS Feed 生成失敗", "ERROR")
+            exit(1)
+    
+    except Exception as e:
+        log_message(f"主程序執行失敗: {str(e)}", "ERROR")
+        exit(1)
+
+if __name__ == "__main__":
+    main()
