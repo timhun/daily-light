@@ -26,9 +26,10 @@ jobs:
 
     - name: Install Python packages
       run: |
+        pip uninstall -y numpy || true
         pip install --upgrade pip
+        pip install opencv-python-headless==4.7.0.72
         pip install numpy==1.23.5
-        pip install opencv-python==4.7.0.72
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
         pip install Pillow pytesseract edge-tts
 
