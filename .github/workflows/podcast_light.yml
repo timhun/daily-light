@@ -2,8 +2,8 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點
-    - cron: '10 10 * * *'  # 台灣晚上 6 點
+    - cron: '0 22 * * *'   # 台灣早上 6 點（UTC 22:00）
+    - cron: '10 10 * * *'  # 台灣晚上 6 點（UTC 10:10）
   workflow_dispatch:
 
 jobs:
@@ -26,20 +26,26 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Install Python packages with compatible versions
+    - name: Fix ABI conflict: force numpy + opencv to stable versions
       run: |
         pip install --upgrade pip
         pip install numpy==1.23.5
+        pip uninstall -y opencv-python opencv-python-headless
         pip install opencv-python==4.7.0.72
+
+    - name: Install Python packages
+      run: |
         pip install paddleocr==2.7.0.3 paddlepaddle==2.5.0
         pip install Pillow pytesseract edge-tts
 
-    - name: 顯示圖片清單
+    - name: 顯示目錄與圖片列表
       run: |
-        echo "當前目錄：" && pwd
-        echo "圖片列表：" && ls -lh docs/img
+        echo "目前目錄:"
+        pwd
+        echo "圖片清單:"
+        ls -lh docs/img
 
-    - name: 執行 OCR
+    - name: OCR 處理
       run: |
         echo "開始 OCR 處理..."
         python scripts/ocr_image_to_text.py
@@ -49,10 +55,10 @@ jobs:
         echo "開始語音合成..."
         python scripts/text_to_speech_edge.py
 
-    - name: Commit 變更
+    - name: Commit and Push to GitHub
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
         git add --all
-        git commit -m "🎙️ Auto update for $(date +'%Y%m%d (%H:%M)')" || echo "No changes"
+        git commit -m "🎙️ Auto update for $(date +'%Y%m%d (%H:%M)')" || echo "No changes to commit"
         git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
