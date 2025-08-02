@@ -1,5 +1,3 @@
-# scripts/ocr_image_to_text.py
-
 import os
 import sys
 import cv2
@@ -7,15 +5,12 @@ import numpy as np
 from PIL import Image, ImageEnhance
 import pytesseract
 import re
-
-# 匯入 utils 模組中的工具函式
 from utils import load_config, get_date_string, ensure_directory, chinese_number_to_digit, log_message
 
-# 設定專案根目錄（確保在 GitHub Actions 或本地都正確）
+# 設定根目錄與路徑
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
-
 
 class DailyLightOCR:
     def __init__(self):
@@ -29,12 +24,9 @@ class DailyLightOCR:
 
             pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             pil_image = self.auto_rotate_image(pil_image)
-
-            # 增強對比與亮度
             pil_image = ImageEnhance.Contrast(pil_image).enhance(1.2)
             pil_image = ImageEnhance.Brightness(pil_image).enhance(1.1)
             gray_image = pil_image.convert('L')
-
             cv_image = cv2.cvtColor(np.array(gray_image), cv2.COLOR_GRAY2BGR)
             blurred = cv2.GaussianBlur(cv_image, (1, 1), 0)
             kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
@@ -50,7 +42,6 @@ class DailyLightOCR:
             angles = [0, 90, 180, 270]
             best_angle = 0
             best_confidence = 0
-
             for angle in angles:
                 rotated = image.rotate(angle, expand=True)
                 try:
@@ -63,7 +54,6 @@ class DailyLightOCR:
                             best_angle = angle
                 except:
                     continue
-
             if best_angle != 0:
                 log_message(f"自動旋轉圖片 {best_angle} 度")
                 return image.rotate(best_angle, expand=True)
@@ -106,10 +96,6 @@ class DailyLightOCR:
         upper_text = self.ocr_text(upper)
         lower_text = self.ocr_text(lower)
 
-        if not upper_text and not lower_text:
-            log_message("OCR 識別失敗，沒有提取到文字", "ERROR")
-            return False
-
         output_dir = os.path.join(OUTPUT_DIR, date_str)
         ensure_directory(output_dir)
 
@@ -117,19 +103,19 @@ class DailyLightOCR:
             with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
                 f.write(upper_text.strip())
             log_message(f"晨間文本已保存: {output_dir}/morning.txt")
+        else:
+            with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
+                f.write("今日無內容")
 
         if lower_text.strip():
             with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
                 f.write(lower_text.strip())
             log_message(f"晚間文本已保存: {output_dir}/evening.txt")
+        else:
+            with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
+                f.write("今日無內容")
 
-        if not upper_text.strip() and not lower_text.strip():
-            for period in ["morning", "evening"]:
-                with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
-                    f.write("今日無內容")
-            log_message("創建了默認內容文件")
         return True
-
 
 def main():
     try:
@@ -146,7 +132,6 @@ def main():
     except Exception as e:
         log_message(f"主程序執行失敗: {str(e)}", "ERROR")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
