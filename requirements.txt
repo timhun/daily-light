@@ -13,3 +13,6 @@ python-dateutil
 lxml
 opencv-python
 numpy
+# PaddleOCR 用於 OCR 辨識
+paddleocr
+# 指定 PaddlePaddle 版本會在 GitHub Actions 中安裝，這裡不必再寫
