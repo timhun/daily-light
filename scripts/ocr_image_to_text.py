@@ -1,100 +1,117 @@
 # scripts/ocr_image_to_text.py
+
 import os
 import sys
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
+import re
 from paddleocr import PaddleOCR
+
 from utils import load_config, get_date_string, ensure_directory, log_message
 
+# 設定專案路徑
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMG_DIR = os.path.join(BASE_DIR, "docs", "img")
 OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
+DEBUG_SAVE = True  # 設定是否儲存分割圖片
 
 class DailyLightOCR:
     def __init__(self):
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False)
-        self.debug = True
+        self.config = load_config()
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='ch', use_gpu=False)
 
     def preprocess_image(self, image_path):
         try:
             image = cv2.imread(image_path)
             if image is None:
                 raise ValueError(f"無法讀取圖片: {image_path}")
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(gray, (3, 3), 0)
-            _, binary = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            return Image.fromarray(binary)
+
+            # 轉為 RGB 並用 PIL 處理
+            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+
+            # 增強對比與亮度
+            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.5)
+            pil_image = ImageEnhance.Brightness(pil_image).enhance(1.2)
+
+            return pil_image
         except Exception as e:
             log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
             return None
 
-    def split_image(self, image):
+    def split_image(self, image, date_str):
         width, height = image.size
-        upper = image.crop((0, 0, width, height // 2))
-        lower = image.crop((0, height // 2, width, height))
-        if self.debug:
-            upper.save(os.path.join(OUTPUT_DIR, "debug_upper.jpg"))
-            lower.save(os.path.join(OUTPUT_DIR, "debug_lower.jpg"))
-        return upper, lower
+        upper_half = image.crop((0, 0, width, height // 2))
+        lower_half = image.crop((0, height // 2, width, height))
 
-    def ocr_text(self, image):
-        image_np = np.array(image)
-        result = self.ocr.ocr(image_np)
-        lines = []
-        for line in result[0]:
-            text = line[1][0].strip()
-            if text:
-                lines.append(text)
-        return self.organize_paragraphs(lines)
+        if DEBUG_SAVE:
+            debug_dir = os.path.join(OUTPUT_DIR, date_str)
+            ensure_directory(debug_dir)
+            upper_half.save(os.path.join(debug_dir, "debug_morning.jpg"))
+            lower_half.save(os.path.join(debug_dir, "debug_evening.jpg"))
 
-    def organize_paragraphs(self, lines):
-        """將文字行整理成段落"""
-        paragraph = ""
+        return upper_half, lower_half
+
+    def ocr_image(self, pil_img):
+        try:
+            img_np = np.array(pil_img)
+            result = self.ocr.ocr(img_np, cls=True)
+            lines = []
+            for line in result[0]:
+                text = line[1][0]
+                lines.append(text.strip())
+            return self.clean_text('\n'.join(lines))
+        except Exception as e:
+            log_message(f"OCR 辨識錯誤: {str(e)}", "ERROR")
+            return ""
+
+    def clean_text(self, raw_text):
+        """清理段落與符號，避免單字重複與亂碼"""
+        lines = raw_text.splitlines()
+        cleaned = []
         for line in lines:
-            if line.endswith("。") or line.endswith("！") or line.endswith("？"):
-                paragraph += line + "\n"
-            else:
-                paragraph += line
-        return paragraph.strip()
+            line = line.strip()
+            if len(line) < 2 or re.match(r'^[\W\d_]+$', line):  # 避免雜訊
+                continue
+            cleaned.append(line)
+        return '\n'.join(cleaned)
 
     def process_daily_image(self, date_str=None):
         if not date_str:
             date_str = get_date_string()
 
-        img_path = os.path.join(IMG_DIR, f"{date_str}.jpg")
-        if not os.path.exists(img_path):
-            log_message(f"圖片不存在: {img_path}", "ERROR")
+        image_path = os.path.join(IMG_DIR, f"{date_str}.jpg")
+        if not os.path.exists(image_path):
+            log_message(f"圖片不存在: {image_path}", "ERROR")
             return False
 
-        log_message(f"開始處理圖片: {img_path}")
-        image = self.preprocess_image(img_path)
+        log_message(f"開始處理圖片: {image_path}")
+        image = self.preprocess_image(image_path)
         if image is None:
             return False
 
-        upper_img, lower_img = self.split_image(image)
-        upper_text = self.ocr_text(upper_img)
-        lower_text = self.ocr_text(lower_img)
+        upper, lower = self.split_image(image, date_str)
+        morning_text = self.ocr_image(upper)
+        evening_text = self.ocr_image(lower)
 
         output_dir = os.path.join(OUTPUT_DIR, date_str)
         ensure_directory(output_dir)
 
-        if upper_text:
+        if morning_text.strip():
             with open(os.path.join(output_dir, "morning.txt"), "w", encoding="utf-8") as f:
-                f.write(upper_text)
+                f.write(morning_text.strip())
             log_message(f"晨間文本已保存: {output_dir}/morning.txt")
 
-        if lower_text:
+        if evening_text.strip():
             with open(os.path.join(output_dir, "evening.txt"), "w", encoding="utf-8") as f:
-                f.write(lower_text)
+                f.write(evening_text.strip())
             log_message(f"晚間文本已保存: {output_dir}/evening.txt")
 
-        if not upper_text and not lower_text:
-            for p in ['morning', 'evening']:
-                with open(os.path.join(output_dir, f"{p}.txt"), "w", encoding="utf-8") as f:
+        if not morning_text.strip() and not evening_text.strip():
+            for period in ["morning", "evening"]:
+                with open(os.path.join(output_dir, f"{period}.txt"), "w", encoding="utf-8") as f:
                     f.write("今日無內容")
-            log_message("創建了默認內容文件")
-
+            log_message("未辨識出內容，已建立預設空白內容")
         return True
 
 def main():
