@@ -1,114 +1,88 @@
 # scripts/generate_rss.py
 import os
-import re
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 from feedgen.feed import FeedGenerator
-from dateutil import tz
+from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
-# --- 基本設定 (請根據您的需求修改) ---
-PODCAST_TITLE = "幫幫忙說每日亮光"
-# 重要！請將此 URL 替換為您的 GitHub Pages 網址
-# 範例: https://tim-oneway.github.io/daily-light-podcast/
-BASE_URL = "https://timhun.github.io/<your-repo-name>" 
-PODCAST_DESCRIPTION = "每日靈修，以馬內利。透過自動化技術，將《每日亮光》轉換為語音，陪伴您的每一天。"
-PODCAST_AUTHOR = {'name': '幫幫忙', 'email': 'tim.oneway@gmail.com'}
-# 重要！請將此 URL 替換為您的封面圖的完整路徑
-# 範例: f"{BASE_URL}/img/cover.jpg"
-PODCAST_COVER_URL = f"{BASE_URL}/img/cover.jpg"
-B2_PUBLIC_URL_BASE = f"https://f005.backblazeb2.com/file/{os.environ.get('B2_BUCKET_NAME')}"
-
-
-def get_file_info(file_path):
-    """
-    獲取檔案大小和類型。
-    """
-    if not os.path.exists(file_path):
-        return 0, 'audio/mpeg'
-    size = os.path.getsize(file_path)
-    return str(size), 'audio/mpeg'
-
-def generate_rss():
-    """
-    掃描 podcast 目錄並生成 RSS feed。
-    """
-    fg = FeedGenerator()
-    fg.load_extension('podcast')
-
-    # --- Podcast 整體資訊 ---
-    fg.title(PODCAST_TITLE)
-    fg.link(href=BASE_URL, rel='alternate')
-    fg.description(PODCAST_DESCRIPTION)
-    fg.language('zh-TW')
-    fg.author(PODCAST_AUTHOR)
-    fg.image(url=PODCAST_COVER_URL, title=PODCAST_TITLE, link=BASE_URL)
+class RSSGenerator:
+    def __init__(self):
+        self.config = load_config()
+        self.podcast_config = self.config['podcast']
     
-    # --- iTunes 特定標籤 ---
-    fg.podcast.itunes_author(PODCAST_AUTHOR['name'])
-    fg.podcast.itunes_owner(name=PODCAST_AUTHOR['name'], email=PODCAST_AUTHOR['email'])
-    fg.podcast.itunes_category('Religion & Spirituality', 'Christianity')
-    fg.podcast.itunes_explicit('no')
-    fg.podcast.itunes_image(PODCAST_COVER_URL)
-
-    # --- 掃描所有集數並加入到 Feed ---
-    podcast_dir = 'docs/podcast'
-    date_folders = sorted([d for d in os.listdir(podcast_dir) if os.path.isdir(os.path.join(podcast_dir, d))], reverse=True)
-
-    for date_str in date_folders:
-        match = re.match(r'(\d{4})(\d{2})(\d{2})', date_str)
-        if not match:
-            continue
+    def create_feed_generator(self):
+        """創建 RSS Feed 生成器"""
+        fg = FeedGenerator()
         
-        year, month, day = map(int, match.groups())
-        episode_date = datetime(year, month, day, tzinfo=tz.gettz('Asia/Taipei'))
-
-        day_path = os.path.join(podcast_dir, date_str)
+        # 基本信息
+        fg.id('https://timhun.github.io/daily-light/')
+        fg.title(self.podcast_config['title'])
+        fg.subtitle(self.podcast_config['subtitle'])
+        fg.author({'name': self.podcast_config['author'], 'email': self.podcast_config['email']})
+        fg.description(self.podcast_config['description'])
+        fg.language(self.podcast_config['language'])
+        fg.link(href='https://timhun.github.io/daily-light/', rel='alternate')
+        fg.link(href='https://timhun.github.io/daily-light/rss/podcast.xml', rel='self')
+        fg.image(self.podcast_config['image_url'])
         
-        # 處理晚間內容
-        evening_txt_path = os.path.join(day_path, 'evening.txt')
-        evening_mp3_path = os.path.join(day_path, 'evening.mp3')
-        if os.path.exists(evening_txt_path) and os.path.exists(evening_mp3_path):
-            with open(evening_txt_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+        # Podcast 特定設置
+        fg.podcast.itunes_category(self.podcast_config['category'])
+        fg.podcast.itunes_explicit(self.podcast_config['explicit'])
+        fg.podcast.itunes_author(self.podcast_config['author'])
+        fg.podcast.itunes_owner(self.podcast_config['author'], self.podcast_config['email'])
+        fg.podcast.itunes_summary(self.podcast_config['description'])
+        fg.podcast.itunes_image(self.podcast_config['image_url'])
+        
+        return fg
+    
+    def get_file_size(self, file_path):
+        """獲取文件大小"""
+        try:
+            if os.path.exists(file_path):
+                return os.path.getsize(file_path)
+        except:
+            pass
+        return 0
+    
+    def get_audio_duration(self, file_path):
+        """獲取音頻時長（簡化版本）"""
+        # 這裡簡化處理，實際應用中可以使用 mutagen 等庫
+        # 根據文件大小估算時長（假設 1MB ≈ 1分鐘）
+        try:
+            file_size_mb = self.get_file_size(file_path) / (1024 * 1024)
+            duration_seconds = int(file_size_mb * 60)  # 簡化估算
+            return duration_seconds
+        except:
+            return 300  # 默認5分鐘
+    
+    def add_episode(self, fg, date_str, period, audio_url, text_content):
+        """添加節目集數"""
+        try:
+            # 讀取文本內容
+            episode_text = text_content.strip()
+            if not episode_text or episode_text == "今日無內容":
+                episode_text = f"今日{period}時段暫無內容"
             
+            # 創建集數
             fe = fg.add_entry()
-            title = f"{year}年{month}月{day}日 (晚)"
-            fe.title(title)
-            fe.id(f"{date_str}-evening")
-            fe.pubDate(episode_date.replace(hour=18)) # 假設晚間在 18:00 發佈
-            fe.description(f"晚間靈修：\n{content}")
-            fe.link(href=f"{BASE_URL}/podcast/{date_str}/")
             
-            mp3_filename = f"{date_str}_evening.mp3"
-            mp3_url = f"{B2_PUBLIC_URL_BASE}/{mp3_filename}"
-            size, mime = get_file_info(evening_mp3_path)
-            fe.enclosure(url=mp3_url, length=size, type=mime)
-
-        # 處理晨間內容
-        morning_txt_path = os.path.join(day_path, 'morning.txt')
-        morning_mp3_path = os.path.join(day_path, 'morning.mp3')
-        if os.path.exists(morning_txt_path) and os.path.exists(morning_mp3_path):
-            with open(morning_txt_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # 基本信息
+            episode_title = f"{self.podcast_config['title']} - {date_str[:4]}年{date_str[4:6]}月{date_str[6:8]}日{'晨間' if period == 'morning' else '晚間'}"
+            episode_id = f"daily-light-{date_str}-{period}"
             
-            fe = fg.add_entry()
-            title = f"{year}年{month}月{day}日 (晨)"
-            fe.title(title)
-            fe.id(f"{date_str}-morning")
-            fe.pubDate(episode_date.replace(hour=6)) # 假設晨間在 06:00 發佈
-            fe.description(f"晨間靈修：\n{content}")
-            fe.link(href=f"{BASE_URL}/podcast/{date_str}/")
-
-            mp3_filename = f"{date_str}_morning.mp3"
-            mp3_url = f"{B2_PUBLIC_URL_BASE}/{mp3_filename}"
-            size, mime = get_file_info(morning_mp3_path)
-            fe.enclosure(url=mp3_url, length=size, type=mime)
-
-    # 產生 RSS XML 檔案
-    rss_path = os.path.join('docs', 'rss', 'podcast.xml')
-    os.makedirs(os.path.dirname(rss_path), exist_ok=True)
-    fg.rss_file(rss_path, pretty=True)
-    print(f"RSS Feed 已成功生成於: {rss_path}")
-
-
-if __name__ == "__main__":
-    generate_rss()
+            fe.id(f"https://timhun.github.io/daily-light/podcast/{date_str}/{period}")
+            fe.title(episode_title)
+            fe.description(f"今日{'晨間' if period == 'morning' else '晚間'}靈修分享\n\n{episode_text[:200]}...")
+            fe.author({'name': self.podcast_config['author'], 'email': self.podcast_config['email']})
+            
+            # 時間設置
+            pub_date = datetime.strptime(date_str, '%Y%m%d')
+            if period == 'morning':
+                pub_date = pub_date.replace(hour=6, minute=0)
+            else:
+                pub_date = pub_date.replace(hour=18, minute=0)
+            
+            fe.pubDate(pub_date)
+            
+            # 音頻信息
+            local_audio_path = os.path.join('
