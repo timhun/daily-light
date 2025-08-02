@@ -2,8 +2,8 @@ name: 每日亮光 Podcast 自動化流程
 
 on:
   schedule:
-    - cron: '0 22 * * *'  # 台灣早上6點
-    - cron: '0 10 * * *'  # 台灣晚上6點
+    - cron: '0 22 * * *'  # 台灣時間 06:00
+    - cron: '0 10 * * *'  # 台灣時間 18:00
   workflow_dispatch:
 
 env:
@@ -33,44 +33,39 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Print image list for debug
+    - name: OCR Image Processing
       run: |
         echo "目前目錄:"
         pwd
         echo "圖片清單:"
         ls -l docs/img
-
-    - name: OCR Image Processing
-      run: |
         echo "開始 OCR 處理..."
         python scripts/ocr_image_to_text.py
 
     - name: Generate Speech
-      run: |
-        echo "開始語音生成..."
-        python scripts/text_to_speech_edge.py
+      run: python scripts/text_to_speech_edge.py
 
     - name: Upload to B2
       env:
         B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
         B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-      run: |
-        echo "開始上傳到 B2..."
-        python scripts/upload_to_b2.py
+      run: python scripts/upload_to_b2.py
 
     - name: Generate RSS Feed
-      run: |
-        echo "開始生成 RSS Feed..."
-        python scripts/generate_rss.py
+      run: python scripts/generate_rss.py
 
     - name: Commit and push changes
       run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Action"
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
         git add docs/
-        if git diff --cached --quiet; then
-          echo "沒有變更"
-        else
-          git commit -m "🎧 更新每日亮光 Podcast $(TZ=Asia/Taipei date)"
-          git push
-        fi
+        git diff --cached --quiet || git commit -m "Auto update podcast"
+        git push
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        publish_branch: gh-pages
+        force_orphan: true
