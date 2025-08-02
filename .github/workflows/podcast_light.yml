@@ -59,6 +59,12 @@ jobs:
           echo "image_exists=false" >> $GITHUB_OUTPUT
           echo "圖片不存在: $IMAGE_PATH"
         fi
+    - name: List current directory & check image
+      run: |
+            echo "目前目錄:"
+            pwd
+            echo "圖片清單:"
+            ls -l docs/img
 
     - name: 🧠 OCR image to text
       if: steps.check_image.outputs.image_exists == 'true'
