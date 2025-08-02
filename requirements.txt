@@ -8,3 +8,8 @@ pytesseract
 Pillow
 b2sdk
 boto3
+beautifulsoup4
+python-dateutil
+lxml
+opencv-python
+numpy
