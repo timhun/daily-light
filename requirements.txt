@@ -25,7 +25,8 @@ paddleocr==2.7.0.3
 paddlepaddle==2.5.0
 
 # CNocr OCR 模組（備用 / 主要測試用）
-torch==2.7.0
-torchvision==0.15.2+cpu
-torchaudio==2.0.2+cpu
-cnocr==2.3.0
+# OCR 模組
+paddleocr==2.7.0.3
+paddlepaddle==2.5.0
+cnocr
+torch==2.0.1
