@@ -27,3 +27,4 @@ paddlepaddle==2.5.0
 # CNocr OCR 模組（備用 / 主要測試用）
 cnocr
 torch==2.0.1
+onnxruntime
