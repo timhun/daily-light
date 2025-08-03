@@ -1,12 +1,10 @@
-# scripts/ocr_image_to_text.py
-
 import os
 import sys
 import cv2
 import numpy as np
 from PIL import Image, ImageEnhance
 import re
-from cnocr import CnOcr
+from paddleocr import PaddleOCR
 from utils import load_config, get_date_string, ensure_directory, log_message
 
 # 設定專案路徑
@@ -16,23 +14,52 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "docs", "podcast")
 DEBUG_SAVE = True
 
 class DailyLightOCR:
-    def __init__(self, ocr_engine='cnocr'):
+    def __init__(self):
         self.config = load_config()
-        self.ocr_engine = ocr_engine
-        if ocr_engine == 'cnocr':
-            self.ocr = CnOcr()
-        else:
-            raise NotImplementedError("目前僅支援 cnocr")
+        self.ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang='ch',
+            use_gpu=False,
+            show_log=False,
+            det_db_box_thresh=0.3,
+            rec_algorithm='CRNN',
+            rec_model_dir=None,
+            use_space_char=True
+        )
 
     def preprocess_image(self, image_path):
         try:
             image = cv2.imread(image_path)
             if image is None:
                 raise ValueError(f"無法讀取圖片: {image_path}")
-            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            pil_image = ImageEnhance.Contrast(pil_image).enhance(1.5)
-            pil_image = ImageEnhance.Brightness(pil_image).enhance(1.2)
-            return pil_image
+
+            # 自動旋轉（若有 EXIF）
+            try:
+                from PIL import ExifTags
+                pil = Image.open(image_path)
+                for orientation in ExifTags.TAGS.keys():
+                    if ExifTags.TAGS[orientation] == 'Orientation':
+                        break
+                exif = pil._getexif()
+                if exif and orientation in exif:
+                    if exif[orientation] == 3:
+                        pil = pil.rotate(180, expand=True)
+                    elif exif[orientation] == 6:
+                        pil = pil.rotate(270, expand=True)
+                    elif exif[orientation] == 8:
+                        pil = pil.rotate(90, expand=True)
+                image = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+            except:
+                pass
+
+            # 灰階 + 去噪 + 對比拉伸 + 自適應二值化
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.bilateralFilter(gray, 9, 75, 75)
+            gray = cv2.equalizeHist(gray)
+            thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+                                           cv2.THRESH_BINARY, 15, 10)
+
+            return Image.fromarray(thresh)
         except Exception as e:
             log_message(f"圖片預處理失敗: {str(e)}", "ERROR")
             return None
@@ -41,18 +68,23 @@ class DailyLightOCR:
         width, height = image.size
         upper_half = image.crop((0, 0, width, height // 2))
         lower_half = image.crop((0, height // 2, width, height))
+
         if DEBUG_SAVE:
             debug_dir = os.path.join(OUTPUT_DIR, date_str)
             ensure_directory(debug_dir)
             upper_half.save(os.path.join(debug_dir, "debug_morning.jpg"))
             lower_half.save(os.path.join(debug_dir, "debug_evening.jpg"))
+
         return upper_half, lower_half
 
     def ocr_image(self, pil_img):
         try:
-            img_np = np.array(pil_img.convert("RGB"))
-            result = self.ocr.ocr(img_np)
-            lines = [r['text'] for r in result if r['text'].strip()]
+            img_np = np.array(pil_img)
+            result = self.ocr.ocr(img_np, cls=True)
+            lines = []
+            for line in result[0]:
+                text = line[1][0]
+                lines.append(text.strip())
             return self.clean_text('\n'.join(lines))
         except Exception as e:
             log_message(f"OCR 辨識錯誤: {str(e)}", "ERROR")
@@ -108,7 +140,7 @@ class DailyLightOCR:
 
 def main():
     try:
-        ocr = DailyLightOCR(ocr_engine='cnocr')
+        ocr = DailyLightOCR()
         date_str = get_date_string()
         log_message(f"開始處理 {date_str} 的每日亮光")
         success = ocr.process_daily_image(date_str)
