@@ -26,9 +26,10 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Install Python dependencies
+    - name: Install Python dependencies (with cnocr + torch)
       run: |
         pip install --upgrade pip
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
 
     - name: Show working directory and image list
