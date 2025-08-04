@@ -8,7 +8,7 @@ from utils import ensure_dir, extract_date_from_filename, log_message
 
 # Initialize OCR
 
-ocr = PaddleOCR(use_angle_cls=True, lang=‘ch’, use_gpu=False, show_log=False)
+ocr = PaddleOCR(use_angle_cls=True, lang=“ch”, use_gpu=False, show_log=False)
 
 def preprocess_image(image):
 # Convert to grayscale
@@ -55,29 +55,29 @@ result = ocr.ocr(img, cls=True)
             if text and confidence > 0.5:
                 lines.append(text)
 
-    joined = '\n'.join(lines)
+    joined = "\n".join(lines)
     
     # Original images are Traditional Chinese, no conversion needed
     # Just basic text cleaning
-    joined = re.sub(r'\s+', ' ', joined)  # Merge extra spaces
+    joined = re.sub(r"\s+", " ", joined)  # Merge extra spaces
     joined = joined.strip()
     
     return joined
     
 except Exception as e:
-    log_message(f'OCR processing error: {e}', 'ERROR')
+    log_message("OCR processing error: {}".format(str(e)), "ERROR")
     return ""
 ```
 
 def save_debug_images(base_dir, img_name, orig, proc, top, bot):
 ensure_dir(base_dir)
 try:
-cv2.imwrite(os.path.join(base_dir, f”{img_name}_original.jpg”), orig)
-cv2.imwrite(os.path.join(base_dir, f”{img_name}_processed.jpg”), proc)
-cv2.imwrite(os.path.join(base_dir, f”{img_name}_morning.jpg”), top)
-cv2.imwrite(os.path.join(base_dir, f”{img_name}_evening.jpg”), bot)
+cv2.imwrite(os.path.join(base_dir, “{}_original.jpg”.format(img_name)), orig)
+cv2.imwrite(os.path.join(base_dir, “{}_processed.jpg”.format(img_name)), proc)
+cv2.imwrite(os.path.join(base_dir, “{}_morning.jpg”.format(img_name)), top)
+cv2.imwrite(os.path.join(base_dir, “{}_evening.jpg”.format(img_name)), bot)
 except Exception as e:
-log_message(f’Failed to save debug images: {e}’, ‘ERROR’)
+log_message(“Failed to save debug images: {}”.format(str(e)), “ERROR”)
 
 def main():
 input_dir = “docs/img”
@@ -86,7 +86,7 @@ debug_dir = “debug”
 
 ```
 # Support multiple image formats
-supported_formats = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff')
+supported_formats = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
 
 for fname in sorted(os.listdir(input_dir)):
     if not fname.lower().endswith(supported_formats):
@@ -94,21 +94,21 @@ for fname in sorted(os.listdir(input_dir)):
 
     date_str = extract_date_from_filename(fname)
     if not date_str:
-        log_message(f'Cannot extract date from filename: {fname}', 'WARNING')
+        log_message("Cannot extract date from filename: {}".format(fname), "WARNING")
         continue
 
     img_path = os.path.join(input_dir, fname)
     image = cv2.imread(img_path)
 
     if image is None:
-        log_message(f'Failed to read image: {img_path}', 'ERROR')
+        log_message("Failed to read image: {}".format(img_path), "ERROR")
         continue
 
     try:
         processed = preprocess_image(image)
         top_half, bottom_half = crop_sections(processed)
 
-        save_debug_images(debug_dir, fname.replace('.jpg', ''), image, processed, top_half, bottom_half)
+        save_debug_images(debug_dir, fname.replace(".jpg", ""), image, processed, top_half, bottom_half)
 
         # OCR recognition for top and bottom sections
         morning_text = ocr_image_section(top_half)
@@ -121,17 +121,17 @@ for fname in sorted(os.listdir(input_dir)):
         morning_file = os.path.join(out_path, "morning.txt")
         evening_file = os.path.join(out_path, "evening.txt")
 
-        with open(morning_file, 'w', encoding='utf-8') as f:
-            f.write(morning_text if morning_text.strip() else 'No content for today')
+        with open(morning_file, "w", encoding="utf-8") as f:
+            f.write(morning_text if morning_text.strip() else "No content for today")
 
-        with open(evening_file, 'w', encoding='utf-8') as f:
-            f.write(evening_text if evening_text.strip() else 'No content for today')
+        with open(evening_file, "w", encoding="utf-8") as f:
+            f.write(evening_text if evening_text.strip() else "No content for today")
 
-        log_message(f'Completed: {fname}', 'SUCCESS')
+        log_message("Completed: {}".format(fname), "SUCCESS")
         
     except Exception as e:
-        log_message(f'Processing failed: {fname}, Error: {e}', 'ERROR')
+        log_message("Processing failed: {}, Error: {}".format(fname, str(e)), "ERROR")
 ```
 
-if **name** == ‘**main**’:
+if **name** == “**main**”:
 main()
