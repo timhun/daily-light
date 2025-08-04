@@ -8,7 +8,7 @@ from utils import ensure_dir, extract_date_from_filename, log_message
 
 # Initialize OCR
 
-ocr = PaddleOCR(use_angle_cls=True, lang=“ch”, use_gpu=False, show_log=False)
+ocr = PaddleOCR(use_angle_cls=True, lang="ch", use_gpu=False, show_log=False)
 
 def preprocess_image(image):
 # Convert to grayscale
