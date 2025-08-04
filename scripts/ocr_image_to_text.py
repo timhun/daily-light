@@ -4,30 +4,28 @@ import os
 import re
 import cv2
 import numpy as np
-from datetime import datetime
 from paddleocr import PaddleOCR
 from utils import ensure_dir, extract_date_from_filename, log_message
 
-# Initialize OCR
+# 初始化 PaddleOCR（繁體中文，直式支援）
 ocr = PaddleOCR(use_angle_cls=True, lang="ch", use_gpu=False, show_log=False)
 
 def preprocess_image(image):
-    # Convert to grayscale
+    # 灰階處理
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # CLAHE contrast enhancement
+    # CLAHE 對比增強
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     enhanced = clahe.apply(gray)
 
-    # Shadow/background compensation
+    # 背景補償
     blurred = cv2.medianBlur(enhanced, 11)
-    blurred = np.where(blurred == 0, 1, blurred)  # Prevent divide-by-zero
+    blurred = np.where(blurred == 0, 1, blurred)  # 避免除以0
     norm = cv2.divide(enhanced, blurred, scale=255)
 
-    # Adaptive thresholding
-    binary = cv2.adaptiveThreshold(
-        norm, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 15
-    )
+    # 二值化處理
+    binary = cv2.adaptiveThreshold(norm, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 35, 15)
     return binary
 
 def crop_sections(image):
@@ -36,9 +34,10 @@ def crop_sections(image):
     bottom_half = image[height // 2:, :]
     return top_half, bottom_half
 
-def ocr_image_section(img, debug_path=None):
+def ocr_image_section(img):
     try:
         result = ocr.ocr(img, cls=True)
+
         if not result or not result[0]:
             return ""
 
@@ -51,10 +50,11 @@ def ocr_image_section(img, debug_path=None):
                     lines.append(text)
 
         joined = "\n".join(lines)
-        joined = re.sub(r"\s+", " ", joined).strip()  # Clean and compact
+        joined = re.sub(r"\s+", " ", joined).strip()
         return joined
+
     except Exception as e:
-        log_message("OCR processing error: {}".format(str(e)), "ERROR")
+        log_message(f"OCR processing error: {e}", "ERROR")
         return ""
 
 def save_debug_images(base_dir, img_name, orig, proc, top, bot):
@@ -65,7 +65,7 @@ def save_debug_images(base_dir, img_name, orig, proc, top, bot):
         cv2.imwrite(os.path.join(base_dir, f"{img_name}_morning.jpg"), top)
         cv2.imwrite(os.path.join(base_dir, f"{img_name}_evening.jpg"), bot)
     except Exception as e:
-        log_message("Failed to save debug images: {}".format(str(e)), "ERROR")
+        log_message(f"Failed to save debug images: {e}", "ERROR")
 
 def main():
     input_dir = "docs/img"
@@ -102,15 +102,19 @@ def main():
             out_path = os.path.join(output_dir, date_str)
             ensure_dir(out_path)
 
-            with open(os.path.join(out_path, "morning.txt"), "w", encoding="utf-8") as f:
-                f.write(morning_text if morning_text.strip() else "今日無內容")
+            morning_file = os.path.join(out_path, "morning.txt")
+            evening_file = os.path.join(out_path, "evening.txt")
 
-            with open(os.path.join(out_path, "evening.txt"), "w", encoding="utf-8") as f:
-                f.write(evening_text if evening_text.strip() else "今日無內容")
+            with open(morning_file, "w", encoding="utf-8") as f:
+                f.write(morning_text if morning_text.strip() else "No content for today")
+
+            with open(evening_file, "w", encoding="utf-8") as f:
+                f.write(evening_text if evening_text.strip() else "No content for today")
 
             log_message(f"Completed: {fname}", "SUCCESS")
+
         except Exception as e:
-            log_message(f"Processing failed: {fname}, Error: {str(e)}", "ERROR")
+            log_message(f"Processing failed: {fname}, Error: {e}", "ERROR")
 
 if __name__ == "__main__":
     main()
