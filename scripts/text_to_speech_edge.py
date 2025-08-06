@@ -1,4 +1,4 @@
-#text_to_speech_edge.py
+# text_to_speech_edge.py
 import os
 import asyncio
 import edge_tts
@@ -101,7 +101,7 @@ async def main():
         tts_processor = DailyLightTTS()
         date_str = get_date_string()
         
-        log_message(f"開始生成 {date_str} 的語音文件")
+        log_message(f"開始生成 {date)str} 的語音文件")
         
         success = await tts_processor.process_daily_audio(date_str)
         
