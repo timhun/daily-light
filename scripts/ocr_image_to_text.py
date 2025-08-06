@@ -88,7 +88,7 @@ def ocr_and_split(date_str):
             f.write(morning_text)
         print(f"成功寫入 morning.txt，內容長度: {len(morning_text)}")
     else:
-        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding 市='utf-8') as f:
+        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
             f.write("今日晨間無內容")
         print("晨間內容為空。")
 
