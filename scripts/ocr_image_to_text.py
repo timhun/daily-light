@@ -6,7 +6,7 @@ import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
 import re
 
-# 設定 TESSDATA_PREFIX 環境變數 (在 GitHub Actions 中可能需要)
+# 設定 TESSDATA_PREFIX 環境變數（在 GitHub Actions 中可能需要）
 # os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 
 def process_image(image_path):
@@ -24,7 +24,7 @@ def process_image(image_path):
         img = img.filter(ImageFilter.SHARPEN)
         return img
     except FileNotFoundError:
-        print(f"Error: 圖片檔案未找到 {image_path}")
+        print(f"錯誤: 圖片檔案未找到 {image_path}")
         return None
 
 def ocr_and_split(date_str):
@@ -48,25 +48,18 @@ def ocr_and_split(date_str):
     # 使用繁體中文語言包 chi_tra
     full_text = pytesseract.image_to_string(processed_img, lang='chi_tra')
 
-    # --- 修正開始 ---
-    # 使用更靈活的正則表達式，使其能同時辨識阿拉伯數字與中文數字
-    # 原本: r'八月\s*\d+\s*日\s*．\s*晨'
-    # 修正後:
+    # 使用更靈活的正則表達式，同時辨識阿拉伯數字與中文數字
     morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晨', full_text)
     evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晚', full_text)
-    # --- 修正結束 ---
 
     morning_text = ""
     evening_text = ""
 
     if morning_match and evening_match:
         print("偵測到'晨'與'晚'的關鍵字。")
-        # 晨的內容是從 "晨" 關鍵字開始到 "晚" 關鍵字之前
         morning_start_index = morning_match.end()
         evening_start_index = evening_match.start()
         morning_text = full_text[morning_start_index:evening_start_index].strip()
-        
-        # 晚的內容是從 "晚" 關鍵字開始到結尾
         evening_text = full_text[evening_match.end():].strip()
         
     elif morning_match:
@@ -79,7 +72,6 @@ def ocr_and_split(date_str):
 
     else:
         print("未偵測到'晨'或'晚'的關鍵字，OCR 辨識可能失敗。")
-        # 寫入無內容
         with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
             f.write("今日無內容")
         with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
@@ -96,7 +88,7 @@ def ocr_and_split(date_str):
             f.write(morning_text)
         print(f"成功寫入 morning.txt，內容長度: {len(morning_text)}")
     else:
-        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(base_path, 'morning.txt'), 'w', encoding 市='utf-8') as f:
             f.write("今日晨間無內容")
         print("晨間內容為空。")
 
@@ -108,7 +100,6 @@ def ocr_and_split(date_str):
         with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
             f.write("今日晚間無內容")
         print("晚間內容為空。")
-
 
 if __name__ == "__main__":
     # 如果從命令行傳入日期，則使用該日期，否則使用當前日期
