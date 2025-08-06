@@ -29,7 +29,7 @@ def process_image(image_path):
 
 def ocr_and_split(date_str):
     """
-    主函數，執行 OCR 並將內容分割成晨、晚兩部分，支援校正稿比對。
+    主函數，執行 OCR 並將內容分割成晨、晚兩部分，優先採用校正稿內容。
     """
     base_path = os.path.join('docs', 'podcast', date_str)
     img_path = os.path.join('docs', 'img', f"{date_str}.jpg")
@@ -48,24 +48,22 @@ def ocr_and_split(date_str):
     # OCR 辨識
     full_text_ocr = pytesseract.image_to_string(processed_img, lang='chi_tra')
 
-    # 檢查校正稿是否存在
+    # 檢查校正稿是否存在，優先使用校正稿內容
     full_text = full_text_ocr
     if os.path.exists(correction_path):
         with open(correction_path, 'r', encoding='utf-8') as f:
             full_text_correction = f.read().strip()
-        print(f"找到校正稿: {correction_path}")
-        # 比較 OCR 結果與校正稿，若不一致則使用校正稿
-        if full_text_correction and full_text_ocr != full_text_correction:
-            print("OCR 結果與校正稿不一致，使用校正稿內容。")
+        if full_text_correction:
+            print(f"找到校正稿: {correction_path}，優先採用校正稿內容。")
             full_text = full_text_correction
         else:
-            print("OCR 結果與校正稿一致，或校正稿無效，使用 OCR 結果。")
+            print(f"校正稿 {correction_path} 內容為空，使用 OCR 結果。")
     else:
         print("未找到校正稿，使用 OCR 結果。")
 
-    # 使用更靈活的正則表達式，同時辨識阿拉伯數字與中文數字
-    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晨', full_text)
-    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晚', full_text)
+    # 更新正則表達式，支援逗號和句號作為分隔符號
+    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[，\.]\s*晨', full_text)
+    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[，\.]\s*晚', full_text)
 
     morning_text = ""
     evening_text = ""
