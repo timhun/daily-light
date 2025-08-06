@@ -47,7 +47,7 @@ def extract_date_from_filename(filename):
                 if date_str[:4].startswith(('20', '19')):
                     date_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
                 else:
-                    date_str = f"{date_str[4:8]}-{date_str[2:4]}-{date_str[:2]}"
+                    date_str = f"{date_str[4:6]}-{date_str[2:4]}-{date_str[:2]}"
             elif '_' in date_str:
                 date_str = date_str.replace('_', '-')
             elif len(date_str) == 10 and date_str[2] == '-':
