@@ -1,22 +1,15 @@
 {
-  "podcast": {
-    "title": "幫幫忙說每日亮光",
-    "subtitle": "每日靈修分享，晨昏兩個時段的心靈饗宴",
-    "author": "幫幫忙",
-    "email": "tim.oneway@gmail.com",
-    "description": "每日分享《每日亮光》的內容，包含晨昏兩個時段的靈修經文與默想，讓您在忙碌的生活中找到心靈的平靜與力量。",
-    "language": "zh-TW",
-    "category": "Religion & Spirituality",
-    "explicit": false,
-    "image_url": "https://f002.backblazeb2.com/file/daily-light/podcast-cover.jpg"
-  },
-  "tts": {
-    "voice": "zh-TW-YunJheNeural",
-    "rate": "+20%",
-    "volume": "+0%"
-  },
+  "tts": {"voice": "zh-CN-Xiaoxiao", "rate": "+0%", "volume": "+0%"},
   "b2": {
+    "account_id": "your_account_id",
+    "application_key": "your_application_key",
     "bucket_name": "daily-light",
-    "folder_prefix": "podcast/"
+    "bucket_url": "https://daily-light.s3.us-west-002.backblazeb2.com"
+  },
+  "rss": {
+    "title": "幫幫忙說每日亮光",
+    "author": "幫幫忙",
+    "email": "contact@example.com",
+    "description": "每日靈修內容，晨間與晚間分享"
   }
 }
