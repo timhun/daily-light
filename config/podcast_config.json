@@ -1,10 +1,10 @@
 {
   "tts": {"voice": "zh-CN-Xiaoxiao", "rate": "+10%", "volume": "+10%"},
   "b2": {
-    "account_id": "your_account_id",
-    "application_key": "your_application_key",
-    "bucket_name": "daily-light",
-    "bucket_url": "https://daily-light.s3.us-west-002.backblazeb2.com"
+    "account_id": "",
+    "application_key": "",
+    "bucket_name": "",
+    "bucket_url": ""
   },
   "rss": {
     "title": "幫幫忙說每日亮光",
