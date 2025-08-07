@@ -5,11 +5,22 @@ on:
     - cron: '0 22 * * *'   # 台灣早上 6 點
     - cron: '10 10 * * *'  # 台灣晚上 6 點
   workflow_dispatch:
-
+  
 jobs:
   generate:
     runs-on: ubuntu-22.04
 
+    env:
+      PODCAST_MODE: tw
+      MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+      GROK_API_URL: ${{ secrets.GROK_API_URL }}
+      B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+      B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      B2_BUCKET_NAME: daily-light
+
+  
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
