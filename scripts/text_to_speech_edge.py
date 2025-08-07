@@ -4,16 +4,23 @@ import asyncio
 import edge_tts
 import re
 from utils import load_config, get_date_string, log_message
-import b2sdk  # Backblaze B2 SDK
-from feedgen.feed import FeedGenerator  # RSS feed 生成
+from b2sdk.v1 import InMemoryAccountInfo, B2Api
+from feedgen.feed import FeedGenerator
+import mutagen  # 用於獲取音頻時長
 
 class DailyLightTTS:
     def __init__(self):
         self.config = load_config()
         # 初始化 Backblaze B2
-        self.b2_api = b2sdk.B2Api(b2sdk.InMemoryAccountInfo())
-        self.b2_api.authorize_account("production", self.config['b2']['account_id'], self.config['b2']['application_key'])
+        info = InMemoryAccountInfo()
+        self.b2_api = B2Api(info)
+        self.b2_api.authorize_account(
+            "production",
+            self.config['b2']['account_id'],
+            self.config['b2']['application_key']
+        )
         self.bucket = self.b2_api.get_bucket_by_name(self.config['b2']['bucket_name'])
+        self.bucket_url = self.config['b2']['bucket_url']
 
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
@@ -59,13 +66,21 @@ class DailyLightTTS:
     async def upload_to_b2(self, file_path, date_str, period):
         """上傳 MP3 到 Backblaze B2"""
         try:
+            if not os.path.exists(file_path):
+                log_message(f"本地文件不存在: {file_path}", "ERROR")
+                return None
+            
             remote_path = f"{date_str}/{period}.mp3"
             self.bucket.upload_local_file(
-                local_file=file_path,
-                file_name=remote_path
+                content_type='audio/mpeg',
+                file_name=remote_path,
+                file=open(file_path, 'rb')
             )
-            log_message(f"成功上傳 {period}.mp3 到 Backblaze B2: {remote_path}")
-            return f"https://{self.config['b2']['bucket_url']}/{remote_path}"
+            
+            download_url = f"{self.bucket_url}/{remote_path}"
+            log_message(f"文件已上傳: {download_url}")
+            return download_url
+            
         except Exception as e:
             log_message(f"上傳 {period}.mp3 到 Backblaze B2 失敗: {str(e)}", "ERROR")
             return None
@@ -74,12 +89,12 @@ class DailyLightTTS:
         """生成或更新 RSS feed"""
         try:
             fg = FeedGenerator()
-            fg.id(f"https://timhun.github.io/daily-light/rss/podcast.xml")
-            fg.title("幫幫忙說亮光")
-            fg.author({"name": "幫幫忙", "email": self.config['rss']['contact_email']})
-            fg.link(href=f"https://timhun.github.io/daily-light/", rel="alternate")
-            fg.description("每日靈修內容，晨間與晚間分享")
-            fg.language("zh-TW")
+            fg.id('https://timhun.github.io/daily-light/')
+            fg.title(self.config['rss']['title'])
+            fg.author({'name': self.config['rss']['author'], 'email': self.config['rss']['email']})
+            fg.link(href='https://timhun.github.io/daily-light/', rel='alternate')
+            fg.description(self.config['rss']['description'])
+            fg.language('zh-TW')
 
             # 晨間內容
             if morning_url:
@@ -87,8 +102,11 @@ class DailyLightTTS:
                 fe.id(morning_url)
                 fe.title(f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]} 晨")
                 fe.link(href=morning_url)
+                audio = mutagen.File(f"docs/podcast/{date_str}/morning.mp3")
+                duration = int(audio.info.length) if audio else 300
                 fe.enclosure(url=morning_url, length=os.path.getsize(f"docs/podcast/{date_str}/morning.mp3"), type="audio/mpeg")
                 fe.pubDate(datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0800"))
+                fe.podcast.itunes_duration(duration)
 
             # 晚間內容
             if evening_url:
@@ -96,10 +114,13 @@ class DailyLightTTS:
                 fe.id(evening_url)
                 fe.title(f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]} 晚")
                 fe.link(href=evening_url)
+                audio = mutagen.File(f"docs/podcast/{date_str}/evening.mp3")
+                duration = int(audio.info.length) if audio else 300
                 fe.enclosure(url=evening_url, length=os.path.getsize(f"docs/podcast/{date_str}/evening.mp3"), type="audio/mpeg")
                 fe.pubDate(datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0800"))
+                fe.podcast.itunes_duration(duration)
 
-            rss_output = "rss/podcast.xml"
+            rss_output = os.path.join('docs', 'rss', 'podcast.xml')
             os.makedirs(os.path.dirname(rss_output), exist_ok=True)
             fg.rss_file(rss_output)
             log_message(f"RSS feed 已生成: {rss_output}")
@@ -139,7 +160,6 @@ class DailyLightTTS:
                 if success:
                     success_count += 1
                     log_message(f"{period} 音頻生成成功")
-                    # 上傳到 Backblaze B2
                     url = await self.upload_to_b2(audio_file, date_str, period)
                     if url:
                         if period == 'morning':
@@ -169,10 +189,10 @@ async def main():
         success = await tts_processor.process_daily_audio(date_str)
         
         if success:
-            log_message("語音生成完成")
+            log_message("語音生成與後續處理完成")
             exit(0)
         else:
-            log_message("語音生成失敗", "ERROR")
+            log_message("語音生成或後續處理失敗", "ERROR")
             exit(1)
     
     except Exception as e:
