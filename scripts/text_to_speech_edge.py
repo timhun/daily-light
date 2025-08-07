@@ -139,4 +139,76 @@ class DailyLightTTS:
             log_message(f"生成 RSS feed 失敗: {str(e)}", "ERROR")
 
     async def process_daily_audio(self, date_str=None):
-        """處理每日音頻
+        """處理每日音頻生成並上傳"""
+        if date_str is None:
+            date_str = get_date_string()
+        
+        input_dir = os.path.join('docs', 'podcast', date_str)
+        
+        if not os.path.exists(input_dir):
+            log_message(f"文本目錄不存在: {input_dir}", "ERROR")
+            return False
+        
+        success_count = 0
+        morning_url = None
+        evening_url = None
+        
+        for period in ['morning', 'evening']:
+            text_file = os.path.join(input_dir, f'{period}.txt')
+            audio_file = os.path.join(input_dir, f'{period}.mp3')
+            
+            if not os.path.exists(text_file):
+                log_message(f"文本文件不存在: {text_file}", "WARNING")
+                continue
+            
+            try:
+                with open(text_file, 'r', encoding='utf-8') as f:
+                    text = f.read().strip()
+                
+                full_text = self.add_intro_outro(text, period)
+                success = await self.generate_speech(full_text, audio_file)
+                
+                if success:
+                    success_count += 1
+                    log_message(f"{period} 音頻生成成功")
+                    url = await self.upload_to_b2(audio_file, date_str, period)
+                    if url:
+                        if period == 'morning':
+                            morning_url = url
+                        else:
+                            evening_url = url
+                else:
+                    log_message(f"{period} 音頻生成失敗", "ERROR")
+                    
+            except Exception as e:
+                log_message(f"處理 {period} 文件時出錯: {str(e)}", "ERROR")
+        
+        # 生成 RSS feed
+        if success_count > 0:
+            self.generate_rss(date_str, morning_url, evening_url)
+        
+        return success_count > 0
+
+async def main():
+    """主函數"""
+    try:
+        tts_processor = DailyLightTTS()
+        date_str = get_date_string()
+        
+        log_message(f"開始生成 {date_str} 的語音文件")
+        
+        success = await tts_processor.process_daily_audio(date_str)
+        
+        if success:
+            log_message("語音生成與後續處理完成")
+            exit(0)
+        else:
+            log_message("語音生成或後續處理失敗", "ERROR")
+            exit(1)
+    
+    except Exception as e:
+        log_message(f"主程序執行失敗: {str(e)}", "ERROR")
+        exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
