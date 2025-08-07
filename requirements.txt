@@ -28,3 +28,5 @@ paddlepaddle==2.5.0
 cnocr
 torch==2.0.1
 onnxruntime
+
+mutagen
