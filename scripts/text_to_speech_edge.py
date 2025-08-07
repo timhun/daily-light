@@ -4,23 +4,27 @@ import asyncio
 import edge_tts
 import re
 from utils import load_config, get_date_string, log_message
-from b2sdk.v1 import InMemoryAccountInfo, B2Api
+from b2sdk.v2 import InMemoryAccountInfo, B2Api  # 使用 v2
 from feedgen.feed import FeedGenerator
-import mutagen  # 用於獲取音頻時長
+import mutagen
+import datetime
 
 class DailyLightTTS:
     def __init__(self):
         self.config = load_config()
+        # 使用台灣時區
+        self.tz = datetime.timezone(datetime.timedelta(hours=8))
         # 初始化 Backblaze B2
         info = InMemoryAccountInfo()
         self.b2_api = B2Api(info)
         self.b2_api.authorize_account(
             "production",
-            self.config['b2']['account_id'],
-            self.config['b2']['application_key']
+            os.environ.get('B2_KEY_ID', self.config['b2']['account_id']),
+            os.environ.get('B2_APPLICATION_KEY', self.config['b2']['application_key'])
         )
-        self.bucket = self.b2_api.get_bucket_by_name(self.config['b2']['bucket_name'])
-        self.bucket_url = self.config['b2']['bucket_url']
+        self.bucket_name = os.environ.get('B2_BUCKET_NAME', self.config['b2']['bucket_name'])
+        self.bucket = self.b2_api.get_bucket_by_name(self.bucket_name)
+        self.bucket_url = os.environ.get('B2_BUCKET_URL', self.config['b2']['bucket_url'])
 
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
@@ -70,11 +74,12 @@ class DailyLightTTS:
                 log_message(f"本地文件不存在: {file_path}", "ERROR")
                 return None
             
-            remote_path = f"{date_str}/{period}.mp3"
+            identifier = f"daily-light-{date_str}-{period}"
+            remote_path = f"{identifier}.mp3"
             self.bucket.upload_local_file(
-                content_type='audio/mpeg',
+                local_file=file_path,
                 file_name=remote_path,
-                file=open(file_path, 'rb')
+                content_type="audio/mpeg"
             )
             
             download_url = f"{self.bucket_url}/{remote_path}"
@@ -105,7 +110,7 @@ class DailyLightTTS:
                 audio = mutagen.File(f"docs/podcast/{date_str}/morning.mp3")
                 duration = int(audio.info.length) if audio else 300
                 fe.enclosure(url=morning_url, length=os.path.getsize(f"docs/podcast/{date_str}/morning.mp3"), type="audio/mpeg")
-                fe.pubDate(datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0800"))
+                fe.pubDate(datetime.datetime.now(self.tz).strftime("%a, %d %b %Y %H:%M:%S +0800"))
                 fe.podcast.itunes_duration(duration)
 
             # 晚間內容
@@ -117,7 +122,7 @@ class DailyLightTTS:
                 audio = mutagen.File(f"docs/podcast/{date_str}/evening.mp3")
                 duration = int(audio.info.length) if audio else 300
                 fe.enclosure(url=evening_url, length=os.path.getsize(f"docs/podcast/{date_str}/evening.mp3"), type="audio/mpeg")
-                fe.pubDate(datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0800"))
+                fe.pubDate(datetime.datetime.now(self.tz).strftime("%a, %d %b %Y %H:%M:%S +0800"))
                 fe.podcast.itunes_duration(duration)
 
             rss_output = os.path.join('docs', 'rss', 'podcast.xml')
