@@ -32,3 +32,30 @@ B2_KEY_ID B2_APPLICATION_KEY
 🎯 使用方式
 
 每日上傳圖片到 docs/img/MMDD.jpg 系統自動在 06:00 和 18:00 執行 生成的 Podcast 會自動發布到 RSS Feed 用戶可透過 RSS 訂閱: https://timhun.github.io/daily-light/rss/podcast.xml
+
+daily-light/
+├── docs/                    # 主要數據和輸出目錄
+│   ├── img/                # 儲存待處理的圖片檔案
+│   │   ├── 20250807.jpg    # 當前日期的圖片（例如 OCR 來源）
+│   │   ├── 20250807.txt    # 校正稿（可選）
+│   │   └── ...             # 其他日期的圖片和校正稿
+│   ├── podcast/            # Podcast 相關內容
+│   │   ├── 20250807/       # 當前日期的 Podcast 內容
+│   │   │   ├── morning.txt # 晨間文本
+│   │   │   ├── evening.txt # 晚間文本
+│   │   │   ├── morning.mp3 # 晨間音頻
+│   │   │   └── evening.mp3 # 晚間音頻
+│   │   └── ...             # 其他日期的 Podcast 內容
+│   └── rss/                # RSS feed 儲存目錄
+│       └── podcast.xml     # 生成的 RSS feed 文件
+├── scripts/                # 腳本目錄
+│   ├── ocr_image_to_text.py  # OCR 處理腳本
+│   ├── text_to_speech_edge.py  # 語音合成與後續處理腳本
+│   └── upload_to_b2.py      # (可選) 獨立上傳腳本
+├── config/                 # 配置文件目錄
+│   └── podcast_config.json # 儲存 API 密鑰、配置等
+├── requirements.txt        # Python 依賴文件
+├── .github/                # GitHub Actions 配置文件
+│   └── workflows/
+│       └── daily_light_podcast_generator.yml  # 工作流文件
+└── README.md               # 專案說明文件
