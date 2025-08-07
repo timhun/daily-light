@@ -1,5 +1,5 @@
 {
-  "tts": {"voice": "zh-CN-Xiaoxiao", "rate": "+0%", "volume": "+0%"},
+  "tts": {"voice": "zh-CN-Xiaoxiao", "rate": "+10%", "volume": "+10%"},
   "b2": {
     "account_id": "your_account_id",
     "application_key": "your_application_key",
