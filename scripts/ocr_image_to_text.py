@@ -126,3 +126,4 @@ if __name__ == "__main__":
         target_date = datetime.now(tz).strftime('%Y%m%d')
 
     ocr_and_split(target_date)
+    
