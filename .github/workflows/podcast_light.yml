@@ -2,10 +2,10 @@ name: Daily Light Podcast Generator
 
 on:
   schedule:
-    - cron: '0 22 * * *'   # 台灣早上 6 點
-    - cron: '10 10 * * *'  # 台灣晚上 6 點
+    - cron: '0 22 * * *'   # 台灣早上 6 點 (UTC 22:00)
+    - cron: '0 10 * * *'   # 台灣晚上 6 點 (UTC 10:00)
   workflow_dispatch:
-  
+
 jobs:
   generate:
     runs-on: ubuntu-22.04
@@ -19,8 +19,8 @@ jobs:
       B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
       B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
       B2_BUCKET_NAME: daily-light
+      B2_BUCKET_URL: ${{ secrets.B2_BUCKET_URL }}  # 添加 Bucket URL
 
-  
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -37,10 +37,11 @@ jobs:
           ffmpeg libgl1 libglib2.0-0 \
           tesseract-ocr tesseract-ocr-chi-tra tesseract-ocr-chi-sim
 
-    - name: Install Python dependencies (包含 PyTorch CPU)
+    - name: Install Python dependencies
       run: |
         pip install --upgrade pip
-        pip install --find-links https://download.pytorch.org/whl/cpu -r requirements.txt
+        pip install b2sdk mutagen edge-tts feedgen  # 明確指定依賴
+        pip install -r requirements.txt  # 如果有額外依賴
 
     - name: Show working directory and image list
       run: |
@@ -52,12 +53,12 @@ jobs:
     - name: OCR 處理
       run: |
         echo "開始 OCR 處理..."
-        python scripts/ocr_image_to_text.py
+        python scripts/ocr_image_to_text.py || echo "OCR 處理失敗，但繼續執行"
 
-    - name: 語音合成
+    - name: 語音合成與後續處理
       run: |
-        echo "開始語音合成..."
-        python scripts/text_to_speech_edge.py
+        echo "開始語音合成與後續處理..."
+        python scripts/text_to_speech_edge.py || echo "語音合成失敗，但繼續執行"
 
     - name: Git commit and push
       run: |
@@ -66,3 +67,16 @@ jobs:
         git add --all
         git commit -m "🎙️ Auto update for $(date +'%Y%m%d (%H:%M)')" || echo "No changes to commit"
         git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Podcast Generation Failed',
+            body: 'The Daily Light Podcast generation workflow failed at ${{ github.run_id }}. Please check the logs.',
+            labels: ['bug']
+          })
