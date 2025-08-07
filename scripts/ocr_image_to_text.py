@@ -14,6 +14,9 @@ def process_image(image_path):
     對圖片進行增強處理以提高 OCR 辨識率。
     """
     try:
+        if not os.path.exists(image_path):
+            print(f"錯誤: 圖片檔案未找到 {image_path}")
+            return None
         img = Image.open(image_path)
         # 轉換為灰度
         img = img.convert('L')
@@ -23,8 +26,8 @@ def process_image(image_path):
         # 銳化
         img = img.filter(ImageFilter.SHARPEN)
         return img
-    except FileNotFoundError:
-        print(f"錯誤: 圖片檔案未找到 {image_path}")
+    except Exception as e:
+        print(f"錯誤: 處理圖片 {image_path} 失敗 - {str(e)}")
         return None
 
 def ocr_and_split(date_str):
@@ -37,16 +40,20 @@ def ocr_and_split(date_str):
     
     print(f"正在處理圖片: {img_path}")
 
-    # 建立輸出目錄
+    # 強制創建輸出目錄
     os.makedirs(base_path, exist_ok=True)
-    
-    # 處理圖片
+    print(f"輸出目錄已創建: {base_path}")
+
+    # 檢查並處理圖片
     processed_img = process_image(img_path)
     if processed_img is None:
-        sys.exit(1)
+        print(f"圖片處理失敗，跳過 {date_str} 的處理。")
+        return
 
     # OCR 辨識
+    print(f"開始執行 OCR 辨識...")
     full_text_ocr = pytesseract.image_to_string(processed_img, lang='chi_tra')
+    print(f"OCR 辨識完成，提取文字長度: {len(full_text_ocr.strip())}")
 
     # 檢查校正稿是否存在，優先使用校正稿內容
     full_text = full_text_ocr
@@ -61,7 +68,7 @@ def ocr_and_split(date_str):
     else:
         print("未找到校正稿，使用 OCR 結果。")
 
-    # 更新正則表達式，支援逗號和句號作為分隔符號
+    # 更新正則表達式，支援逗號和句號作為分隔符號，並處理多餘空格
     morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[，\.]\s*晨', full_text)
     evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[，\.]\s*晚', full_text)
 
@@ -89,7 +96,7 @@ def ocr_and_split(date_str):
             f.write("今日無內容")
         with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
             f.write("今日無內容")
-        print("已寫入'今日無內容'。")
+        print(f"已寫入'今日無內容'至 {base_path}/morning.txt 和 {base_path}/evening.txt")
         return
 
     # 清理文字，移除不必要的換行和空白
@@ -99,20 +106,20 @@ def ocr_and_split(date_str):
     if morning_text:
         with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
             f.write(morning_text)
-        print(f"成功寫入 morning.txt，內容長度: {len(morning_text)}")
+        print(f"成功寫入 {base_path}/morning.txt，內容長度: {len(morning_text)}")
     else:
         with open(os.path.join(base_path, 'morning.txt'), 'w', encoding='utf-8') as f:
             f.write("今日晨間無內容")
-        print("晨間內容為空。")
+        print(f"晨間內容為空，已寫入 {base_path}/morning.txt")
 
     if evening_text:
         with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
             f.write(evening_text)
-        print(f"成功寫入 evening.txt，內容長度: {len(evening_text)}")
+        print(f"成功寫入 {base_path}/evening.txt，內容長度: {len(evening_text)}")
     else:
         with open(os.path.join(base_path, 'evening.txt'), 'w', encoding='utf-8') as f:
             f.write("今日晚間無內容")
-        print("晚間內容為空。")
+        print(f"晚間內容為空，已寫入 {base_path}/evening.txt")
 
 if __name__ == "__main__":
     # 如果從命令行傳入日期，則使用該日期，否則使用當前日期
@@ -124,6 +131,6 @@ if __name__ == "__main__":
         import pytz
         tz = pytz.timezone('Asia/Taipei')
         target_date = datetime.now(tz).strftime('%Y%m%d')
+        print(f"使用當前日期: {target_date}")
 
     ocr_and_split(target_date)
-    
