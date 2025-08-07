@@ -16,10 +16,10 @@ class DailyLightTTS:
         info = InMemoryAccountInfo()
         self.b2_api = B2Api(info)
         # 優先使用環境變量，否則使用配置文件
-        key_id = os.environ.get('B2_KEY_ID', self.config['b2'].get('account_id'))
-        app_key = os.environ.get('B2_APPLICATION_KEY', self.config['b2'].get('application_key'))
-        bucket_name = os.environ.get('B2_BUCKET_NAME', self.config['b2'].get('bucket_name'))
-        bucket_url = os.environ.get('B2_BUCKET_URL', self.config['b2'].get('bucket_url'))
+        key_id = os.environ.get('B2_KEY_ID', self.config['b2'].get('account_id', ''))
+        app_key = os.environ.get('B2_APPLICATION_KEY', self.config['b2'].get('application_key', ''))
+        bucket_name = os.environ.get('B2_BUCKET_NAME', self.config['b2'].get('bucket_name', ''))
+        bucket_url = os.environ.get('B2_BUCKET_URL', self.config['b2'].get('bucket_url', ''))
 
         if not all([key_id, app_key, bucket_name, bucket_url]):
             log_message("缺少 B2 認證信息，檢查環境變量或 config/podcast_config.json", "ERROR")
@@ -36,8 +36,8 @@ class DailyLightTTS:
 
         self.tts_config = {
             'voice': os.environ.get('TTS_VOICE', self.config['tts'].get('voice', 'zh-CN-Xiaoxiao')),
-            'rate': os.environ.get('TTS_RATE', self.config['tts'].get('rate', '+0%')),
-            'volume': os.environ.get('TTS_VOLUME', self.config['tts'].get('volume', '+0%'))
+            'rate': os.environ.get('TTS_RATE', self.config['tts'].get('rate', '+10%')),
+            'volume': os.environ.get('TTS_VOLUME', self.config['tts'].get('volume', '+10%'))
         }
         self.rss_config = {
             'title': os.environ.get('RSS_TITLE', self.config['rss'].get('title', '幫幫忙說每日亮光')),
@@ -67,7 +67,7 @@ class DailyLightTTS:
         """添加開場和結尾，移除括號內文字"""
         intro_texts = {
             'morning': "親愛的朋友，早安！歡迎收聽《幫幫忙說每日亮光》。我是幫幫忙，讓我們一起來分享今天晨間的靈修內容。",
-            'evening': "親愛的朋友，晚安！歡迎收聽《幫幫忙說每日亮光》。我是幫幫忙，讓我們一起來分享今天晚間的靈修內容。"
+            'evening': "親愛的朋友，晚安！歡迎收聽《幫幫忙說每日亮光》。我是幫幫便，讓我們一起來分享今天晚間的靈修內容。"
         }
         outro_text = "感謝您的收聽，願神祝福您的每一天。我們明天再見！"
         intro = intro_texts.get(period, intro_texts['morning'])
