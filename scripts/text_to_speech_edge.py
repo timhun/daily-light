@@ -3,6 +3,7 @@ import os
 import asyncio
 import edge_tts
 from utils import load_config, get_date_string, log_message
+import re
 
 class DailyLightTTS:
     def __init__(self):
@@ -34,7 +35,7 @@ class DailyLightTTS:
             return False
     
     def add_intro_outro(self, text, period):
-        """添加開場和結尾"""
+        """添加開場和結尾，並移除括號內的文字"""
         intro_texts = {
             'morning': "親愛的朋友，早安！歡迎收聽《幫幫忙說每日亮光》。我是幫幫忙，讓我們一起來分享今天晨間的靈修內容。",
             'evening': "親愛的朋友，晚安！歡迎收聽《幫幫忙說每日亮光》。我是幫幫忙，讓我們一起來分享今天晚間的靈修內容。"
@@ -44,11 +45,14 @@ class DailyLightTTS:
         
         intro = intro_texts.get(period, intro_texts['morning'])
         
+        # 移除括號內的文字
+        cleaned_text = re.sub(r'\([^)]*\)', '', text).strip()
+        
         # 組合完整文本
-        if text.strip() == "今日無內容":
+        if cleaned_text.strip() == "今日無內容":
             full_text = f"{intro} 很抱歉，今天的內容暫時無法提供。{outro_text}"
         else:
-            full_text = f"{intro} {text} {outro_text}"
+            full_text = f"{intro} {cleaned_text} {outro_text}"
         
         return full_text
     
