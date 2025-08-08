@@ -19,7 +19,7 @@ jobs:
       B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
       B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
       B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
-      B2_BUCKET_URL: ${{ secrets.B2_BUCKET_URL }}  # 添加 Bucket URL
+      B2_BUCKET_URL: ${{ secrets.B2_BUCKET_URL }}
       B2_FOLDER_PREFIX: ${{ secrets.B2_FOLDER_PREFIX }}  # 可選，根據需求添加
 
     steps:
@@ -65,6 +65,11 @@ jobs:
       run: |
         echo "開始上傳到 B2..."
         python scripts/upload_to_b2.py || echo "上傳失敗，但繼續執行"
+
+    - name: 生成 RSS Feed
+      run: |
+        echo "開始生成 RSS Feed..."
+        python scripts/generate_rss.py || echo "RSS 生成失敗，但繼續執行"
 
     - name: Git commit and push
       run: |
