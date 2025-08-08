@@ -8,7 +8,17 @@ import re
 class DailyLightTTS:
     def __init__(self):
         self.config = load_config()
-    
+        self.default_voice = 'zh-TW-HsiaoYuNeural'  # 預設語音
+
+    async def list_available_voices(self):
+        """列出 edge_tts 可用的語音列表"""
+        try:
+            voices = await edge_tts.list_voices()
+            return [voice['Name'] for voice in voices]
+        except Exception as e:
+            log_message(f"無法獲取語音列表: {str(e)}", "ERROR")
+            return []
+
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
         try:
@@ -17,9 +27,16 @@ class DailyLightTTS:
                 return False
             
             # 配置語音參數
-            voice = self.config['tts']['voice']
-            rate = self.config['tts']['rate']
-            volume = self.config['tts']['volume']
+            voice = self.config.get('tts', {}).get('voice', self.default_voice)
+            rate = self.config.get('tts', {}).get('rate', '+0%')
+            volume = self.config.get('tts', {}).get('volume', '+0%')
+            
+            # 檢查語音是否有效
+            available_voices = await self.list_available_voices()
+            if voice not in available_voices:
+                log_message(f"語音 '{voice}' 無效，切換到預設語音 '{self.default_voice}'", "WARNING")
+                log_message(f"可用語音列表: {available_voices}", "INFO")
+                voice = self.default_voice
             
             # 創建 TTS 通信實例
             communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume)
@@ -41,7 +58,7 @@ class DailyLightTTS:
             'evening': "晚安！讓我們一起來分享今天晚間的靈修內容。"
         }
         
-        outro_text = "感謝您的收聽，願神祝福您的每一天。我們明天再見！"
+        outro_text = "謝謝您的收聽，願神祝福您的每一天。我們明天再見！"
         
         intro = intro_texts.get(period, intro_texts['morning'])
         
