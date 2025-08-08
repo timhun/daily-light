@@ -1,30 +1,34 @@
 # scripts/upload_to_b2.py
 import os
 import json
-from b2sdk.v1 import InMemoryAccountInfo, B2Api, B2RawApi
+from b2sdk.v2 import InMemoryAccountInfo, B2Api
 from utils import load_config, get_date_string, log_message
 
 class B2Uploader:
     def __init__(self):
         self.config = load_config()
-        self.bucket_name = self.config['b2']['bucket_name']
-        self.folder_prefix = self.config['b2']['folder_prefix']
-        
-        # 從環境變量獲取 B2 認證信息
-        self.key_id = os.environ.get('B2_KEY_ID')
-        self.application_key = os.environ.get('B2_APPLICATION_KEY')
-        
-        if not self.key_id or not self.application_key:
-            raise ValueError("B2 認證信息未設置")
-        
+        # 優先使用環境變量，否則使用配置文件
+        self.key_id = os.environ.get('B2_KEY_ID', self.config['b2'].get('account_id', ''))
+        self.application_key = os.environ.get('B2_APPLICATION_KEY', self.config['b2'].get('application_key', ''))
+        self.bucket_name = os.environ.get('B2_BUCKET_NAME', self.config['b2'].get('bucket_name', ''))
+        self.bucket_url = os.environ.get('B2_BUCKET_URL', self.config['b2'].get('bucket_url', ''))
+        self.folder_prefix = os.environ.get('B2_FOLDER_PREFIX', self.config['b2'].get('folder_prefix', ''))
+
+        if not all([self.key_id, self.application_key, self.bucket_name, self.bucket_url]):
+            log_message("缺少 B2 認證信息，檢查環境變量或 config/podcast_config.json", "ERROR")
+            exit(1)
+
         # 初始化 B2 API
         info = InMemoryAccountInfo()
         self.b2_api = B2Api(info)
-        self.b2_api.authorize_account("production", self.key_id, self.application_key)
-        
-        # 獲取存儲桶
-        self.bucket = self.b2_api.get_bucket_by_name(self.bucket_name)
-    
+        try:
+            self.b2_api.authorize_account("production", self.key_id, self.application_key)
+            self.bucket = self.b2_api.get_bucket_by_name(self.bucket_name)
+            log_message(f"B2 認證成功，桶: {self.bucket_name}")
+        except Exception as e:
+            log_message(f"B2 認證失敗: {str(e)}，請檢查 B2_KEY_ID 和 B2_APPLICATION_KEY", "ERROR")
+            exit(1)
+
     def upload_file(self, local_path, remote_path):
         """上傳文件到 B2"""
         try:
@@ -33,15 +37,14 @@ class B2Uploader:
                 return None
             
             # 上傳文件
-            file_info = self.bucket.upload_file(
-                content_type='audio/mpeg',
-                filename=remote_path,
-                local_file=open(local_path, 'rb')
+            file_info = self.bucket.upload_local_file(
+                local_file=local_path,
+                file_name=remote_path,
+                content_type='audio/mpeg'
             )
             
             # 生成公開下載 URL
-            download_url = f"https://f002.backblazeb2.com/file/{self.bucket_name}/{remote_path}"
-            
+            download_url = f"{self.bucket_url}/{remote_path}"
             log_message(f"文件已上傳: {download_url}")
             return download_url
             
@@ -53,6 +56,10 @@ class B2Uploader:
         """上傳每日文件"""
         if date_str is None:
             date_str = get_date_string()
+        
+        # 確保日期格式為 YYYYMMDD
+        if len(date_str) == 4:
+            date_str = datetime.datetime.now().strftime('%Y') + date_str
         
         local_dir = os.path.join('docs', 'podcast', date_str)
         
@@ -66,7 +73,7 @@ class B2Uploader:
             audio_file = os.path.join(local_dir, f'{period}.mp3')
             
             if os.path.exists(audio_file):
-                remote_path = f"{self.folder_prefix}{date_str}/{period}.mp3"
+                remote_path = f"{self.folder_prefix}{date_str}/{period}.mp3" if self.folder_prefix else f"{date_str}/{period}.mp3"
                 download_url = self.upload_file(audio_file, remote_path)
                 
                 if download_url:
@@ -78,6 +85,7 @@ class B2Uploader:
         # 保存上傳記錄
         if uploaded_files:
             upload_record_file = os.path.join(local_dir, 'upload_record.json')
+            os.makedirs(os.path.dirname(upload_record_file), exist_ok=True)
             with open(upload_record_file, 'w', encoding='utf-8') as f:
                 json.dump(uploaded_files, f, ensure_ascii=False, indent=2)
             
@@ -112,4 +120,5 @@ def main():
         exit(1)
 
 if __name__ == "__main__":
+    import datetime
     main()
