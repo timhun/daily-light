@@ -33,7 +33,11 @@ def read_correction_text(correction_path):
     """
     try:
         with open(correction_path, 'r', encoding='utf-8') as f:
-            return f.read().strip()
+            text = f.read().strip()
+            # 清理文字，統一換行符號和移除多餘空白
+            text = re.sub(r'\r\n|\r', '\n', text)
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text
     except FileNotFoundError:
         print(f"校正文字稿未找到: {correction_path}")
         return None
@@ -43,10 +47,14 @@ def read_correction_text(correction_path):
 
 def split_text(full_text, date_str):
     """
-    分割文字為晨、晚兩部分。
+    分割文字為晨、晚兩部分，改進正則表達式以提高匹配靈活性。
     """
-    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晨', full_text)
-    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*．\s*晚', full_text)
+    # 改進正則表達式，支援更多分隔符號和格式
+    morning_pattern = r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[•．]\s*晨'
+    evening_pattern = r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[•．]\s*晚'
+    
+    morning_match = re.search(morning_pattern, full_text, re.UNICODE)
+    evening_match = re.search(evening_pattern, full_text, re.UNICODE)
     
     morning_text = ""
     evening_text = ""
@@ -67,7 +75,7 @@ def split_text(full_text, date_str):
         evening_text = full_text[evening_match.end():].strip()
 
     else:
-        print("未偵測到'晨'或'晚'的關鍵字。")
+        print(f"未偵測到'晨'或'晚'的關鍵字，完整文字: {full_text}")
         return None, None
 
     # 清理文字，移除不必要的換行和空白
