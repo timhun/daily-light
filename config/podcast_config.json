@@ -1,12 +1,5 @@
 {
-  "tts": {"voice": "zh-CN-XiaoxiaoNeural", "rate": "+10%", "volume": "+10%"},
-  "b2": {
-    "account_id": "",
-    "application_key": "",
-    "bucket_name": "",
-    "bucket_url": "",
-    "folder_prefix": ""
-  },
+  "tts": {"voice": "zh-TW-YunJheNeural", "rate": "+10%", "volume": "+10%"},
   "rss": {
     "title": "幫幫忙說每日亮光",
     "author": "幫幫忙",
