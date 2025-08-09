@@ -53,8 +53,8 @@ def split_text(full_text, date_str):
     morning_pattern = r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[•．]\s*晨'
     evening_pattern = r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[•．]\s*晚'
     
-    morning_match = re.search(morning_pattern, full_text, re.UNICODE)
-    evening_match = re.search(evening_pattern, full_text, re.UNICODE)
+    morning_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[．。]\s*晨', full_text)
+    evening_match = re.search(r'八月\s*[\d一二三四五六七八九十百]+\s*日\s*[．。]\s*晚', full_text)
     
     morning_text = ""
     evening_text = ""
