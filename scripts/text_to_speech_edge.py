@@ -8,7 +8,7 @@ import re
 class DailyLightTTS:
     def __init__(self):
         self.config = load_config()
-        self.default_voice = 'zh-TW-HsiaoYuNeural'  # 預設語音
+        self.default_voice = 'zh-TW-YunJheNeural'  # 預設語音
 
     async def list_available_voices(self):
         """列出 edge_tts 可用的語音列表"""
