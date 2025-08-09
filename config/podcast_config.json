@@ -1,15 +1,22 @@
 {
-  "tts": {"voice": "zh-TW-YunJheNeural", "rate": "+10%", "volume": "+10%"},
+  "tts": {"voice": "zh-TW-HsiaoYuNeural", "rate": "+10%", "volume": "+10%"},
+  "b2": {
+    "account_id": "",
+    "application_key": "",
+    "bucket_name": "",
+    "bucket_url": "",
+    "folder_prefix": ""
+  },
   "rss": {
     "title": "幫幫忙說每日亮光",
-    "author": "幫幫忙",
+    "author": "幫幫便",
     "email": "tim.oneway@gmail.com",
     "description": "每日靈修內容，晨間與晚間分享"
   },
   "podcast": {
     "title": "幫幫忙說每日亮光",
     "subtitle": "每日靈修內容分享",
-    "author": "幫幫忙",
+    "author": "幫幫便",
     "email": "tim.oneway@gmail.com",
     "description": "每日靈修內容，晨間與晚間分享",
     "language": "zh-TW",
