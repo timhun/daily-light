@@ -27,7 +27,8 @@ class TextToSpeechEdge:
         """生成語音文件"""
         try:
             log_message(f"開始為文本生成語音: {output_path}")
-            cleaned_text = self.clean_text(text)
+            cleaned_text = self.clean_text(text)  # 清理文本
+            log_message(f"清理後文本: {cleaned_text[:50]}...")  # 記錄清理後的文本
             communicate = Communicate(text=cleaned_text, voice=self.voice, rate=self.rate, volume=self.volume)
             await communicate.save(output_path)
             log_message(f"語音文件已生成: {output_path}")
@@ -62,20 +63,20 @@ class TextToSpeechEdge:
                 return "今日無內容", "今日無內容"
 
             if morning_text:
-                morning_text = self.clean_text(morning_text)
-                log_message(f"晨間內容: {morning_text[:50]}...")
+                morning_text = morning_text.strip()
+                log_message(f"晨間原始內容: {morning_text[:50]}...")
             else:
                 log_message("未找到晨間內容，寫入'今日無內容'", "WARNING")
                 morning_text = "今日無內容"
 
             if evening_text:
-                evening_text = self.clean_text(evening_text)
-                log_message(f"晚間內容: {evening_text[:50]}...")
+                evening_text = evening_text.strip()
+                log_message(f"晚間原始內容: {evening_text[:50]}...")
             else:
                 log_message("未找到晚間內容，寫入'今日無內容'", "WARNING")
                 evening_text = "今日無內容"
 
-            # 將清理後的文本保存為獨立文件
+            # 將原始文本保存為獨立文件（供日誌或後續使用）
             morning_file = os.path.join(self.podcast_dir, 'morning.txt')
             evening_file = os.path.join(self.podcast_dir, 'evening.txt')
             with open(morning_file, 'w', encoding='utf-8') as f:
