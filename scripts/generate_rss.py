@@ -96,4 +96,17 @@ try:
     log_message(f"✅ 已產生 RSS Feed：{RSS_FILE}")
 except Exception as e:
     log_message(f"❌ RSS 寫入失敗: {str(e)}", "ERROR")
-    sys.exit(1)=
+    sys.exit(1)
+
+def main():
+    """主函數"""
+    try:
+        # 這裡無需額外邏輯，RSS 已生成
+        log_message("生成 RSS Feed 完成")
+        sys.exit(0)
+    except Exception as e:
+        log_message(f"主程序執行失敗: {str(e)}", "ERROR")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
