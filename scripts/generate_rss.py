@@ -10,11 +10,10 @@ from utils import load_config, get_date_string, ensure_directory, get_taiwan_tim
 SITE_URL = "https://timhun.github.io/daily-light"
 B2_BASE = "https://f005.backblazeb2.com/file/daily-light"
 COVER_URL = f"{SITE_URL}/docs/img/cover.jpg"
-PODCAST_MODE = os.getenv("PODCAST_MODE", "tw").lower()  # 預設為 tw，適配每日亮光
-RSS_FILE = os.path.join('docs', 'rss', f'podcast_{PODCAST_MODE}.xml')
+RSS_FILE = os.path.join('docs', 'rss', 'podcast_light.xml')
 
-FIXED_DESCRIPTION = """每日靈修內容，晨間與晚間分享，幫助您在忙碌生活中找到屬靈支持。
-\n\n🔔 訂閱以接收每日更新，探索經文與反思。
+FIXED_DESCRIPTION = """每日一則靈修亮光，用聲音溫柔照亮新的一天。
+\n\n🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
 \n\n📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com"""
 
 # ===== 初始化 Feed =====
@@ -27,7 +26,7 @@ fg.link(href=SITE_URL, rel="alternate")
 fg.language("zh-TW")
 fg.description(FIXED_DESCRIPTION)
 fg.logo(COVER_URL)
-fg.link(href=f"{SITE_URL}/rss/podcast_{PODCAST_MODE}.xml", rel="self")
+fg.link(href=f"{SITE_URL}/rss/podcast_light.xml", rel="self")
 fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
 fg.podcast.itunes_image(COVER_URL)
 fg.podcast.itunes_explicit("no")
