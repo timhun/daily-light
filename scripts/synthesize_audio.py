@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.getenv("BASE_DIR", "docs")
 AUDIO_DIR = os.path.join(BASE_DIR, "audio")
-VOICE = os.getenv("TTS_VOICE", "zh-CN-XiaoxiaoNeural")
+VOICE = os.getenv("TTS_VOICE", "zh-TW-YunJheNeural")
 
 async def synthesize_text(input_path, output_path):
     with open(input_path, "r", encoding="utf-8") as f:
