@@ -1,4 +1,3 @@
-# text_to_speech_edge.py
 import os
 import re
 from datetime import datetime
@@ -19,7 +18,12 @@ class TextToSpeechEdge:
         """生成語音文件"""
         try:
             log_message(f"開始為文本生成語音: {output_path}")
-            communicate = Communicate(text=text, voice=self.voice, rate=self.rate, volume=self.volume)
+            # 移除括弧內的文字
+            cleaned_text = re.sub(r'\(.*?\)', '', text).strip()
+            if not cleaned_text:
+                log_message(f"清理後文本為空: {output_path}", "WARNING")
+                return False
+            communicate = Communicate(text=cleaned_text, voice=self.voice, rate=self.rate, volume=self.volume)
             await communicate.save(output_path)
             log_message(f"語音文件已生成: {output_path}")
             return True
