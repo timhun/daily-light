@@ -1,7 +1,8 @@
-# scripts/generate_rss.py
 import os
+import sys
 from datetime import datetime
 from feedgen.feed import FeedGenerator
+from feedgen.ext import itunes as itunes_ext  # 明確導入 iTunes 擴展
 from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
 class RSSGenerator:
@@ -32,7 +33,7 @@ class RSSGenerator:
             fg.link(href=self.podcast_config.get('image_url', ''), rel='self')
             fg.language(self.podcast_config.get('language', 'zh-TW'))
 
-            # 添加 Podcast 特定屬性 (iTunes 擴展)
+            # 添加 iTunes 擴展
             itunes = fg.load_extension('itunes')
             itunes.itunes_author(self.feed_author)
             itunes.itunes_category(self.podcast_config.get('category', 'Religion & Spirituality'))
@@ -61,8 +62,8 @@ class RSSGenerator:
                 fe.id(f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}")
                 fe.title(title)
                 fe.description(self.feed_description)
-                fe.link(href=f"{self.podcast_config.get('image_url', '')}/{mp3_file}", rel='enclosure')
-                fe.enclosure(f"{self.podcast_config.get('image_url', '')}/{mp3_file}", 0, 'audio/mpeg')  # 需更新文件大小
+                fe.link(href=f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}", rel='enclosure')
+                fe.enclosure(f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}", 0, 'audio/mpeg')  # 需更新文件大小
                 fe.published(get_taiwan_time().isoformat())
                 itunes_entry = fe.load_extension('itunes')
                 itunes_entry.itunes_duration("00:05:00")  # 需動態計算
