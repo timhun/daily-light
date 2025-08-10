@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from datetime import datetime
 from edge_tts import Communicate
 from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
@@ -14,15 +15,19 @@ class TextToSpeechEdge:
         self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
         ensure_directory(self.podcast_dir)
 
+    def clean_text(self, text):
+        """移除所有括弧內的文字，包括括弧本身"""
+        cleaned_text = re.sub(r'\(.*?\)', '', text).strip()
+        if not cleaned_text:
+            log_message("清理後文本為空，寫入'今日無內容'", "WARNING")
+            return "今日無內容"
+        return cleaned_text
+
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
         try:
             log_message(f"開始為文本生成語音: {output_path}")
-            # 移除括弧內的文字
-            cleaned_text = re.sub(r'\(.*?\)', '', text).strip()
-            if not cleaned_text:
-                log_message(f"清理後文本為空: {output_path}", "WARNING")
-                return False
+            cleaned_text = self.clean_text(text)
             communicate = Communicate(text=cleaned_text, voice=self.voice, rate=self.rate, volume=self.volume)
             await communicate.save(output_path)
             log_message(f"語音文件已生成: {output_path}")
@@ -57,18 +62,20 @@ class TextToSpeechEdge:
                 return "今日無內容", "今日無內容"
 
             if morning_text:
+                morning_text = self.clean_text(morning_text)
                 log_message(f"晨間內容: {morning_text[:50]}...")
             else:
                 log_message("未找到晨間內容，寫入'今日無內容'", "WARNING")
                 morning_text = "今日無內容"
 
             if evening_text:
+                evening_text = self.clean_text(evening_text)
                 log_message(f"晚間內容: {evening_text[:50]}...")
             else:
                 log_message("未找到晚間內容，寫入'今日無內容'", "WARNING")
                 evening_text = "今日無內容"
 
-            # 將文本保存為獨立文件
+            # 將清理後的文本保存為獨立文件
             morning_file = os.path.join(self.podcast_dir, 'morning.txt')
             evening_file = os.path.join(self.podcast_dir, 'evening.txt')
             with open(morning_file, 'w', encoding='utf-8') as f:
@@ -123,14 +130,14 @@ async def main():
 
         if success:
             log_message("語音合成與後續處理完成")
-            exit(0)
+            sys.exit(0)
         else:
             log_message("語音合成與後續處理失敗", "ERROR")
-            exit(1)
+            sys.exit(1)
 
     except Exception as e:
         log_message(f"主程序執行失敗: {str(e)}", "ERROR")
-        exit(1)
+        sys.exit(1)
 
 if __name__ == "__main__":
     import asyncio
