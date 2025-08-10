@@ -1,115 +1,99 @@
 import os
 import sys
-from datetime import datetime
+import datetime
+import pytz
+from mutagen.mp3 import MP3
 from feedgen.feed import FeedGenerator
 from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
-class RSSGenerator:
-    def __init__(self):
-        self.config = load_config()
-        self.rss_config = self.config.get('rss', {})
-        self.podcast_config = self.config.get('podcast', {})
-        self.feed_title = self.rss_config.get('title', 'Default Podcast Title')
-        self.feed_author = self.rss_config.get('author', 'Default Author')
-        self.feed_email = self.rss_config.get('email', 'default@example.com')
-        self.feed_description = self.rss_config.get('description', 'Default description')
-        self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
-        self.output_path = os.path.join('docs', 'rss', 'podcast_light.xml')
+# ===== 基本常數設定 =====
+SITE_URL = "https://timhun.github.io/daily-light"
+B2_BASE = "https://f005.backblazeb2.com/file/daily-light"
+COVER_URL = f"{SITE_URL}/docs/img/cover.jpg"
+PODCAST_MODE = os.getenv("PODCAST_MODE", "tw").lower()  # 預設為 tw，適配每日亮光
+RSS_FILE = os.path.join('docs', 'rss', f'podcast_{PODCAST_MODE}.xml')
 
-        ensure_directory(os.path.dirname(self.output_path))
+FIXED_DESCRIPTION = """每日靈修內容，晨間與晚間分享，幫助您在忙碌生活中找到屬靈支持。
+\n\n🔔 訂閱以接收每日更新，探索經文與反思。
+\n\n📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com"""
 
-    def generate_feed(self):
-        """生成 RSS Feed"""
+# ===== 初始化 Feed =====
+fg = FeedGenerator()
+fg.load_extension("podcast")  # 載入 Podcast 擴展
+fg.id(SITE_URL)
+fg.title("幫幫便說每日亮光")
+fg.author({"name": "幫幫便", "email": "tim.oneway@gmail.com"})
+fg.link(href=SITE_URL, rel="alternate")
+fg.language("zh-TW")
+fg.description(FIXED_DESCRIPTION)
+fg.logo(COVER_URL)
+fg.link(href=f"{SITE_URL}/rss/podcast_{PODCAST_MODE}.xml", rel="self")
+fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
+fg.podcast.itunes_image(COVER_URL)
+fg.podcast.itunes_explicit("no")
+fg.podcast.itunes_author("幫幫便")
+fg.podcast.itunes_owner(name="幫幫便", email="tim.oneway@gmail.com")
+
+# ===== 找出最新資料夾 =====
+episodes_dir = os.path.join('docs', 'podcast')
+matching_folders = sorted([
+    f for f in os.listdir(episodes_dir)
+    if os.path.isdir(os.path.join(episodes_dir, f)) and f == get_date_string()
+], reverse=True)
+
+if not matching_folders:
+    log_message(f"⚠️ 找不到當日 podcast 資料夾 {get_date_string()}，RSS 未產生", "WARNING")
+    sys.exit(0)
+
+latest_folder = matching_folders[0]
+base_path = os.path.join(episodes_dir, latest_folder)
+
+# ===== 處理 morning 和 evening 項目 =====
+audio_files = [('morning.mp3', '晨間'), ('evening.mp3', '晚間')]
+for audio_file, session in audio_files:
+    audio_path = os.path.join(base_path, audio_file)
+    archive_url_file = os.path.join(base_path, f"{session.lower()}_url.txt")  # 假設 URL 存於對應 txt
+
+    if os.path.exists(audio_path) and os.path.exists(archive_url_file):
+        with open(archive_url_file, "r") as f:
+            audio_url = f.read().strip()
+
         try:
-            log_message("開始生成 RSS Feed")
-
-            # 初始化 FeedGenerator
-            fg = FeedGenerator()
-            fg.id(self.podcast_config.get('image_url', ''))
-            fg.title(self.feed_title)
-            fg.author({'name': self.feed_author, 'email': self.feed_email})
-            fg.description(self.feed_description)
-            fg.link(href=self.podcast_config.get('image_url', ''), rel='self')
-            fg.language(self.podcast_config.get('language', 'zh-TW'))
-
-            # 添加 iTunes 擴展
-            itunes = fg.load_extension('itunes')  # 動態加載 iTunes 擴展
-            if itunes:
-                itunes.itunes_author(self.feed_author)
-                itunes.itunes_category(self.podcast_config.get('category', 'Religion & Spirituality'))
-                itunes.itunes_explicit(self.podcast_config.get('explicit', 'no'))
-                itunes.itunes_image(self.podcast_config.get('image_url', ''))
-            else:
-                log_message("iTunes 擴展加載失敗，繼續生成基本 RSS", "WARNING")
-
-            # 檢查並添加當日項目
-            if not os.path.exists(self.podcast_dir):
-                log_message(f"目錄 {self.podcast_dir} 不存在，跳過項目添加", "WARNING")
-                return False
-
-            files = [f for f in os.listdir(self.podcast_dir) if f.endswith('.mp3')]
-            if not files:
-                log_message(f"目錄 {self.podcast_dir} 中無 MP3 文件", "WARNING")
-                return False
-
-            for mp3_file in files:
-                if 'morning' in mp3_file.lower():
-                    title = f"{get_date_string()} 晨間"
-                elif 'evening' in mp3_file.lower():
-                    title = f"{get_date_string()} 晚間"
-                else:
-                    continue
-
-                fe = fg.add_entry()
-                fe.id(f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}")
-                fe.title(title)
-                fe.description(self.feed_description)
-                fe.link(href=f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}", rel='enclosure')
-                fe.enclosure(f"https://{self.podcast_config.get('image_url', '')}/{mp3_file}", 0, 'audio/mpeg')  # 需更新文件大小
-                fe.published(get_taiwan_time().isoformat())
-                if itunes:
-                    itunes_entry = fe.load_extension('itunes')
-                    itunes_entry.itunes_duration("00:05:00")  # 需動態計算
-
-            # 寫入 RSS 文件
-            fg.rss_file(self.output_path)
-            log_message(f"RSS Feed 已生成: {self.output_path}")
-            return True
-
+            mp3 = MP3(audio_path)
+            duration = int(mp3.info.length)
         except Exception as e:
-            log_message(f"RSS 生成失敗: {str(e)}", "ERROR")
-            return False
+            log_message(f"⚠️ 讀取 {audio_file} 時長失敗：{e}", "WARNING")
+            duration = None
 
-    def run(self):
-        """主運行邏輯"""
-        try:
-            success = self.generate_feed()
-            if success:
-                log_message("RSS Feed 生成成功")
-            else:
-                log_message("RSS Feed 生成失敗", "ERROR")
-            return success
+        tz = pytz.timezone("Asia/Taipei")
+        pub_date = tz.localize(datetime.datetime.strptime(get_date_string(), "%Y%m%d"))
+        title = f"每日亮光 - {get_date_string()} {session}"
 
-        except Exception as e:
-            log_message(f"主程序執行失敗: {str(e)}", "ERROR")
-            return False
-
-def main():
-    """主函數"""
-    try:
-        rss_gen = RSSGenerator()
-        success = rss_gen.run()
-
-        if success:
-            log_message("生成 RSS Feed 完成")
-            sys.exit(0)
+        # 摘要處理 (假設 summary.txt 存在)
+        summary_path = os.path.join(base_path, f"{session.lower()}_summary.txt")
+        if os.path.exists(summary_path):
+            with open(summary_path, "r", encoding="utf-8") as f:
+                summary_text = f.read().strip()
+            full_description = f"{FIXED_DESCRIPTION}\n\n🎯 今日{session}摘要：{summary_text}"
         else:
-            log_message("RSS 生成失敗，但繼續執行", "WARNING")
-            sys.exit(1)
+            full_description = FIXED_DESCRIPTION
 
-    except Exception as e:
-        log_message(f"主程序執行失敗: {str(e)}", "ERROR")
-        sys.exit(1)
+        # === Feed Entry ===
+        fe = fg.add_entry()
+        fe.id(audio_url)
+        fe.title(title)
+        fe.description(full_description)
+        fe.content(full_description, type="CDATA")
+        fe.enclosure(audio_url, str(os.path.getsize(audio_path)), "audio/mpeg")
+        fe.pubDate(pub_date)
+        if duration:
+            fe.podcast.itunes_duration(str(datetime.timedelta(seconds=duration)))
 
-if __name__ == "__main__":
-    main()
+# ===== 輸出 RSS =====
+ensure_directory(os.path.dirname(RSS_FILE))
+try:
+    fg.rss_file(RSS_FILE)
+    log_message(f"✅ 已產生 RSS Feed：{RSS_FILE}")
+except Exception as e:
+    log_message(f"❌ RSS 寫入失敗: {str(e)}", "ERROR")
+    sys.exit(1)=
