@@ -1,144 +1,133 @@
 # text_to_speech_edge.py
 import os
-import asyncio
-import edge_tts
-from utils import load_config, get_date_string, log_message
 import re
+from datetime import datetime
+from edge_tts import Communicate
+from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
-class DailyLightTTS:
+class TextToSpeechEdge:
     def __init__(self):
         self.config = load_config()
-        self.default_voice = 'zh-TW-YunJheNeural'  # 預設語音
-
-    async def list_available_voices(self):
-        """列出 edge_tts 可用的語音列表"""
-        try:
-            voices = await edge_tts.list_voices()
-            return [voice['Name'] for voice in voices]
-        except Exception as e:
-            log_message(f"無法獲取語音列表: {str(e)}", "ERROR")
-            return []
+        self.tts_config = self.config.get('tts', {})
+        self.voice = os.environ.get('TTS_VOICE', self.tts_config.get('voice', 'zh-TW-HsiaoYuNeural'))
+        self.rate = self.tts_config.get('rate', '+10%')
+        self.volume = self.tts_config.get('volume', '+10%')
+        self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
+        ensure_directory(self.podcast_dir)
 
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
         try:
-            if not text.strip():
-                log_message("文本為空，跳過語音生成")
-                return False
-            
-            # 配置語音參數
-            voice = self.config.get('tts', {}).get('voice', self.default_voice)
-            rate = self.config.get('tts', {}).get('rate', '+0%')
-            volume = self.config.get('tts', {}).get('volume', '+0%')
-            
-            # 檢查語音是否有效
-            available_voices = await self.list_available_voices()
-            if voice not in available_voices:
-                log_message(f"語音 '{voice}' 無效，切換到預設語音 '{self.default_voice}'", "WARNING")
-                log_message(f"可用語音列表: {available_voices}", "INFO")
-                voice = self.default_voice
-            
-            # 創建 TTS 通信實例
-            communicate = edge_tts.Communicate(text, voice, rate=rate, volume=volume)
-            
-            # 生成音頻文件
+            log_message(f"開始為文本生成語音: {output_path}")
+            communicate = Communicate(text=text, voice=self.voice, rate=self.rate, volume=self.volume)
             await communicate.save(output_path)
-            
             log_message(f"語音文件已生成: {output_path}")
             return True
-            
         except Exception as e:
             log_message(f"語音生成失敗: {str(e)}", "ERROR")
             return False
-    
-    def add_intro_outro(self, text, period):
-        """添加開場和結尾，並移除括號內的文字"""
-        intro_texts = {
-            'morning': "早安！讓我們一起來分享今天晨間的靈修內容。",
-            'evening': "晚安！讓我們一起來分享今天晚間的靈修內容。"
-        }
-        
-        outro_text = "謝謝您的收聽，願神祝福您的每一天。我們明天再見！"
-        
-        intro = intro_texts.get(period, intro_texts['morning'])
-        
-        # 移除括號內的文字
-        cleaned_text = re.sub(r'\([^)]*\)', '', text).strip()
-        
-        # 組合完整文本
-        if cleaned_text.strip() == "今日無內容":
-            full_text = f"{intro} 很抱歉，今天的內容暫時無法提供。{outro_text}"
-        else:
-            full_text = f"{intro} {cleaned_text} {outro_text}"
-        
-        return full_text
-    
-    async def process_daily_audio(self, date_str=None):
-        """處理每日音頻生成"""
-        if date_str is None:
-            date_str = get_date_string()
-        # 將日期格式從 YYYYMMDD 轉為 MMDD
-        if len(date_str) == 8:
-            date_str = date_str[4:]
-        
-        input_dir = os.path.join('docs', 'podcast', date_str)
-        
-        if not os.path.exists(input_dir):
-            log_message(f"文本目錄不存在: {input_dir}", "ERROR")
+
+    def process_text(self, input_path):
+        """處理文字稿並分割為晨間和晚間內容"""
+        try:
+            if not os.path.exists(input_path):
+                log_message(f"文字稿 {input_path} 不存在", "ERROR")
+                return None, None
+
+            with open(input_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+
+            if not content:
+                log_message("文字稿內容為空，寫入'今日無內容'", "WARNING")
+                return "今日無內容", "今日無內容"
+
+            # 偵測 '晨' 和 '晚' 關鍵字並分割
+            morning_match = re.search(r'八月十日\s*晨(?:.*?(?=八月十日\s*晚|$))', content, re.DOTALL)
+            evening_match = re.search(r'八月十日\s*晚(?:.*$)', content, re.DOTALL)
+
+            morning_text = morning_match.group(0).replace('八月十日 晨', '').strip() if morning_match else None
+            evening_text = evening_match.group(0).replace('八月十日 晚', '').strip() if evening_match else None
+
+            if not morning_text and not evening_text:
+                log_message("未偵測到'晨'或'晚'的關鍵字", "ERROR")
+                return "今日無內容", "今日無內容"
+
+            if morning_text:
+                log_message(f"晨間內容: {morning_text[:50]}...")
+            else:
+                log_message("未找到晨間內容，寫入'今日無內容'", "WARNING")
+                morning_text = "今日無內容"
+
+            if evening_text:
+                log_message(f"晚間內容: {evening_text[:50]}...")
+            else:
+                log_message("未找到晚間內容，寫入'今日無內容'", "WARNING")
+                evening_text = "今日無內容"
+
+            # 將文本保存為獨立文件
+            morning_file = os.path.join(self.podcast_dir, 'morning.txt')
+            evening_file = os.path.join(self.podcast_dir, 'evening.txt')
+            with open(morning_file, 'w', encoding='utf-8') as f:
+                f.write(morning_text)
+            with open(evening_file, 'w', encoding='utf-8') as f:
+                f.write(evening_text)
+
+            return morning_text, evening_text
+
+        except Exception as e:
+            log_message(f"處理文字稿失敗: {str(e)}", "ERROR")
+            return None, None
+
+    async def run(self, input_path):
+        """主運行邏輯"""
+        try:
+            log_message("開始語音合成與後續處理...")
+            morning_text, evening_text = self.process_text(input_path)
+
+            if morning_text is None or evening_text is None:
+                log_message("文字處理失敗，跳過語音生成", "ERROR")
+                return False
+
+            # 生成語音文件
+            morning_mp3 = os.path.join(self.podcast_dir, 'morning.mp3')
+            evening_mp3 = os.path.join(self.podcast_dir, 'evening.mp3')
+
+            success = await self.generate_speech(morning_text, morning_mp3)
+            if success:
+                log_message("morning 音頻生成成功")
+            else:
+                log_message("morning 音頻生成失敗，但繼續執行", "WARNING")
+
+            success = await self.generate_speech(evening_text, evening_mp3)
+            if success:
+                log_message("evening 音頻生成成功")
+            else:
+                log_message("evening 音頻生成失敗，但繼續執行", "WARNING")
+
+            return True
+
+        except Exception as e:
+            log_message(f"主程序執行失敗: {str(e)}", "ERROR")
             return False
-        
-        success_count = 0
-        
-        for period in ['morning', 'evening']:
-            text_file = os.path.join(input_dir, f'{period}.txt')
-            audio_file = os.path.join(input_dir, f'{period}.mp3')
-            
-            if not os.path.exists(text_file):
-                log_message(f"文本文件不存在: {text_file}", "WARNING")
-                continue
-            
-            # 讀取文本
-            try:
-                with open(text_file, 'r', encoding='utf-8') as f:
-                    text = f.read().strip()
-                
-                # 添加開場和結尾
-                full_text = self.add_intro_outro(text, period)
-                
-                # 生成語音
-                success = await self.generate_speech(full_text, audio_file)
-                
-                if success:
-                    success_count += 1
-                    log_message(f"{period} 音頻生成成功")
-                else:
-                    log_message(f"{period} 音頻生成失敗", "ERROR")
-                    
-            except Exception as e:
-                log_message(f"處理 {period} 文件時出錯: {str(e)}", "ERROR")
-        
-        return success_count > 0
 
 async def main():
     """主函數"""
     try:
-        tts_processor = DailyLightTTS()
-        date_str = get_date_string()
-        
-        log_message(f"開始生成 {date_str} 的語音文件")
-        
-        success = await tts_processor.process_daily_audio(date_str)
-        
+        tts = TextToSpeechEdge()
+        input_path = os.path.join('docs', 'img', f'{get_date_string()}.txt')
+        success = await tts.run(input_path)
+
         if success:
-            log_message("語音生成完成")
+            log_message("語音合成與後續處理完成")
             exit(0)
         else:
-            log_message("語音生成失敗", "ERROR")
+            log_message("語音合成與後續處理失敗", "ERROR")
             exit(1)
-    
+
     except Exception as e:
         log_message(f"主程序執行失敗: {str(e)}", "ERROR")
         exit(1)
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
