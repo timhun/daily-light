@@ -44,13 +44,6 @@ jobs:
         pip install b2sdk mutagen edge-tts feedgen  # 明確指定依賴
         pip install -r requirements.txt  # 如果有額外依賴
 
-    - name: Show working directory and image list
-      run: |
-        echo "目前目錄:"
-        pwd
-        echo "圖片清單:"
-        ls -lh docs/img
-
     - name: OCR 處理
       run: |
         echo "開始 OCR 處理..."
@@ -61,6 +54,14 @@ jobs:
         echo "開始語音合成與後續處理..."
         python scripts/text_to_speech_edge.py || echo "語音合成失敗，但繼續執行"
 
+    - name: 檢查環境變量和配置文件
+      run: |
+        echo "B2_KEY_ID: $B2_KEY_ID"
+        echo "B2_APPLICATION_KEY: $B2_APPLICATION_KEY"
+        echo "B2_BUCKET_NAME: $B2_BUCKET_NAME"
+        echo "B2_BUCKET_URL: $B2_BUCKET_URL"
+        cat config/podcast_config.json || echo "配置文件不存在"
+    
     - name: 上傳到 B2
       run: |
         echo "開始上傳到 B2..."
