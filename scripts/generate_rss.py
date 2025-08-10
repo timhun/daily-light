@@ -14,14 +14,14 @@ RSS_FILE = os.path.join('docs', 'rss', 'podcast_light.xml')
 
 FIXED_DESCRIPTION = """每日一則靈修亮光，用聲音溫柔照亮新的一天。
 \n\n🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
-\n\n📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com"""
+\n\n📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com"""
 
 # ===== 初始化 Feed =====
 fg = FeedGenerator()
 fg.load_extension("podcast")  # 載入 Podcast 擴展
 fg.id(SITE_URL)
-fg.title("幫幫便說每日亮光")
-fg.author({"name": "幫幫便", "email": "tim.oneway@gmail.com"})
+fg.title("幫幫忙說每日亮光")
+fg.author({"name": "幫幫忙", "email": "tim.oneway@gmail.com"})
 fg.link(href=SITE_URL, rel="alternate")
 fg.language("zh-TW")
 fg.description(FIXED_DESCRIPTION)
@@ -30,8 +30,8 @@ fg.link(href=f"{SITE_URL}/rss/podcast_light.xml", rel="self")
 fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
 fg.podcast.itunes_image(COVER_URL)
 fg.podcast.itunes_explicit("no")
-fg.podcast.itunes_author("幫幫便")
-fg.podcast.itunes_owner(name="幫幫便", email="tim.oneway@gmail.com")
+fg.podcast.itunes_author("幫幫忙")
+fg.podcast.itunes_owner(name="幫幫忙", email="tim.oneway@gmail.com")
 
 # ===== 找出最新資料夾 =====
 episodes_dir = os.path.join('docs', 'podcast')
