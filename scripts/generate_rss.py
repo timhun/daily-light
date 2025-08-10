@@ -12,10 +12,10 @@ class RSSGenerator:
         self.podcast_config = self.config.get('podcast', {})
         self.feed_title = self.rss_config.get('title', 'Default Podcast Title')
         self.feed_author = self.rss_config.get('author', 'Default Author')
-        self.feed_email = self.rss_config.get('email', 'default@example.com')
+        self.feed_email = self.rss_config.get('email', 'tim.oneway@gmail.com')
         self.feed_description = self.rss_config.get('description', 'Default description')
         self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
-        self.output_path = os.path.join('docs', 'rss', 'podcast.xml')
+        self.output_path = os.path.join('docs', 'rss', 'podcast_light.xml')
 
         ensure_directory(os.path.dirname(self.output_path))
 
