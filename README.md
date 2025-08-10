@@ -31,7 +31,7 @@ B2_KEY_ID B2_APPLICATION_KEY
 
 🎯 使用方式
 
-每日上傳圖片到 docs/img/MMDD.jpg 系統自動在 06:00 和 18:00 執行 生成的 Podcast 會自動發布到 RSS Feed 用戶可透過 RSS 訂閱: https://timhun.github.io/daily-light/rss/podcast.xml
+每日上傳圖片到 docs/img/MMDD.jpg 系統自動在 06:00 和 18:00 執行 生成的 Podcast 會自動發布到 RSS Feed 用戶可透過 RSS 訂閱: https://timhun.github.io/daily-light/rss/podcast_light.xml
 
 daily-light/
 ├── docs/                    # 主要數據和輸出目錄
