@@ -1,5 +1,5 @@
 {
-  "tts": {"voice": "zh-TW-HsiaoYuNeural", "rate": "+10%", "volume": "+10%"},
+  "tts": {"voice": "zh-TW-YunJheNeural", "rate": "+10%", "volume": "+10%"},
   "b2": {
     "account_id": "",
     "application_key": "",
