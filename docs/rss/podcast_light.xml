@@ -1,21 +1,8 @@
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-  <channel>
-    <title>幫幫忙說每日亮光</title>
-    <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
-    <description>每日一則靈修亮光，用聲音溫柔照亮新的一天</description>
-    <language>zh-tw</language>
-    <itunes:author>幫幫忙</itunes:author>
-    <itunes:owner>
-      <itunes:name>幫幫忙</itunes:name>
-      <itunes:email>tim.oneway@gmail.com</itunes:email>
-    </itunes:owner>
-    <itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg"/>
-    <item>
-      <title>每日亮光－2025年07月31日</title>
-      <description>圖片文字轉語音內容</description>
-      <enclosure url="https://f005.backblazeb2.com/file/daily-light/20250731.mp3" type="audio/mpeg"/>
-      <guid>https://f005.backblazeb2.com/file/daily-light/20250731.mp3</guid>
-      <pubDate>Thu, 31 Jul 2025 06:00:00 GMT</pubDate>
-    </item>
-  </channel>
-</rss>
+<?xml version='1.0' encoding='UTF-8'?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>幫幫便說每日亮光</title><link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link><description>每日一則靈修亮光，用聲音溫柔照亮新的一天。
+
+
+🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
+
+
+📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</description><atom:link href="https://timhun.github.io/daily-light/rss/podcast_light.xml" rel="self"/><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://timhun.github.io/daily-light/docs/img/cover.jpg</url><title>幫幫便說每日亮光</title><link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link></image><language>zh-TW</language><lastBuildDate>Sun, 10 Aug 2025 09:25:19 +0000</lastBuildDate><itunes:author>幫幫便</itunes:author><itunes:category text="Religion &amp; Spirituality"><itunes:category text="Christianity"/></itunes:category><itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg"/><itunes:explicit>no</itunes:explicit><itunes:owner><itunes:name>幫幫便</itunes:name><itunes:email>tim.oneway@gmail.com</itunes:email></itunes:owner></channel></rss>
