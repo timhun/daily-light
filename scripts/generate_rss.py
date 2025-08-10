@@ -14,7 +14,7 @@ class RSSGenerator:
         self.feed_email = self.rss_config.get('email', 'default@example.com')
         self.feed_description = self.rss_config.get('description', 'Default description')
         self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
-        self.output_path = os.path.join('docs', 'rss', 'podcast.xml')
+        self.output_path = os.path.join('docs', 'rss', 'podcast_light.xml')
 
         ensure_directory(os.path.dirname(self.output_path))
 
