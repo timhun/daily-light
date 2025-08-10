@@ -14,8 +14,15 @@ class B2Uploader:
         self.bucket_url = os.environ.get('B2_BUCKET_URL', self.config['b2'].get('bucket_url', ''))
         self.folder_prefix = os.environ.get('B2_FOLDER_PREFIX', self.config['b2'].get('folder_prefix', ''))
 
+        # 記錄獲取的認證信息（敏感信息屏蔽）
+        log_message(f"B2_KEY_ID: {'*' * len(self.key_id) if self.key_id else '缺失'}")
+        log_message(f"B2_APPLICATION_KEY: {'*' * len(self.application_key) if self.application_key else '缺失'}")
+        log_message(f"B2_BUCKET_NAME: {'*' * len(self.bucket_name) if self.bucket_name else '缺失'}")
+        log_message(f"B2_BUCKET_URL: {'*' * len(self.bucket_url) if self.bucket_url else '缺失'}")
+
         if not all([self.key_id, self.application_key, self.bucket_name, self.bucket_url]):
-            log_message("缺少 B2 認證信息，檢查環境變量或 config/podcast_config.json", "ERROR")
+            missing = [k for k, v in {'key_id': self.key_id, 'application_key': self.application_key, 'bucket_name': self.bucket_name, 'bucket_url': self.bucket_url}.items() if not v]
+            log_message(f"缺少 B2 認證信息: {', '.join(missing)}，檢查環境變量或 config/podcast_config.json", "ERROR")
             sys.exit(1)
 
         self.info = InMemoryAccountInfo()
