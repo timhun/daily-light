@@ -1,139 +1,117 @@
-# scripts/ocr_image_to_text.py
 import os
 import re
-from datetime import datetime
-from edge_tts import communicate
+from PIL import Image
+import pytesseract
 from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
-class TextToSpeechEdge:
+class OCRImageToText:
     def __init__(self):
         self.config = load_config()
-        self.tts_config = self.config.get('tts', {})
-        self.voice = os.environ.get('TTS_VOICE', self.tts_config.get('voice', 'zh-TW-HsiaoYuNeural'))
-        self.rate = self.tts_config.get('rate', '+10%')
-        self.volume = self.tts_config.get('volume', '+10%')
-        self.podcast_dir = os.path.join('docs', 'podcast', get_date_string())
-        ensure_directory(self.podcast_dir)
+        self.ocr_config = self.config.get('ocr', {})
+        self.image_dir = os.path.join('docs', 'img')
+        self.output_dir = os.path.join('docs', 'podcast', get_date_string())
+        ensure_directory(self.output_dir)
+        self.output_text_path = os.path.join(self.image_dir, f'{get_date_string()}.txt')
 
-    async def generate_speech(self, text, output_path):
-        """生成語音文件"""
+    def process_image(self, image_path):
+        """處理圖片並提取文字，基於段落分隔生成 morning.txt 和 evening.txt"""
         try:
-            log_message(f"開始為文本生成語音: {output_path}")
-            communicate_params = {
-                "text": text,
-                "voice": self.voice,
-                "rate": self.rate,
-                "volume": self.volume,
-                "output_file": output_path
-            }
-            await communicate(**communicate_params)
-            log_message(f"語音文件已生成: {output_path}")
-            return True
-        except Exception as e:
-            log_message(f"語音生成失敗: {str(e)}", "ERROR")
-            return False
+            log_message(f"開始處理圖片: {image_path}")
+            # 打開圖片並進行 OCR
+            image = Image.open(image_path)
+            text = pytesseract.image_to_string(image, lang='chi_tra', config='--oem 3 --psm 6')
+            log_message(f"OCR 提取的原始文字: {text[:50]}...")
 
-    def process_text(self, input_path):
-        """處理文字稿並分割為晨間和晚間內容"""
-        try:
-            if not os.path.exists(input_path):
-                log_message(f"文字稿 {input_path} 不存在", "ERROR")
-                return None, None
+            if not text.strip():
+                log_message("OCR 提取的文字為空", "WARNING")
+                return False
 
-            with open(input_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
+            # 將文字保存到臨時文件
+            with open(self.output_text_path, 'w', encoding='utf-8') as f:
+                f.write(text.strip())
+            log_message(f"文字已保存至: {self.output_text_path}")
 
-            if not content:
-                log_message("文字稿內容為空，寫入'今日無內容'", "WARNING")
-                return "今日無內容", "今日無內容"
+            # 分割晨間和晚間內容，基於空行
+            lines = text.strip().split('\n')
+            morning_text = []
+            evening_text = []
+            state = 'morning'  # 預設狀態為晨間
 
-            # 偵測 '晨' 和 '晚' 關鍵字並分割
-            morning_match = re.search(r'八月十日\s*晨(?:.*?(?=八月十日\s*晚|$))', content, re.DOTALL)
-            evening_match = re.search(r'八月十日\s*晚(?:.*$)', content, re.DOTALL)
+            for line in lines:
+                line = line.strip()
+                if not line:  # 空行，切換到晚間
+                    state = 'evening'
+                    continue
+                if state == 'morning':
+                    morning_text.append(line)
+                elif state == 'evening':
+                    evening_text.append(line)
 
-            morning_text = morning_match.group(0).replace('八月十日 晨', '').strip() if morning_match else None
-            evening_text = evening_match.group(0).replace('八月十日 晚', '').strip() if evening_match else None
+            morning_text = '\n'.join(morning_text).strip()
+            evening_text = '\n'.join(evening_text).strip()
 
-            if not morning_text and not evening_text:
-                log_message("未偵測到'晨'或'晚'的關鍵字", "ERROR")
-                return "今日無內容", "今日無內容"
-
-            if morning_text:
-                log_message(f"晨間內容: {morning_text[:50]}...")
-            else:
+            if not morning_text:
                 log_message("未找到晨間內容，寫入'今日無內容'", "WARNING")
                 morning_text = "今日無內容"
-
-            if evening_text:
-                log_message(f"晚間內容: {evening_text[:50]}...")
             else:
+                log_message(f"晨間內容: {morning_text[:50]}...")
+
+            if not evening_text:
                 log_message("未找到晚間內容，寫入'今日無內容'", "WARNING")
                 evening_text = "今日無內容"
+            else:
+                log_message(f"晚間內容: {evening_text[:50]}...")
 
-            # 將文本保存為獨立文件
-            morning_file = os.path.join(self.podcast_dir, 'morning.txt')
-            evening_file = os.path.join(self.podcast_dir, 'evening.txt')
+            # 保存分段文件
+            morning_file = os.path.join(self.output_dir, 'morning.txt')
+            evening_file = os.path.join(self.output_dir, 'evening.txt')
             with open(morning_file, 'w', encoding='utf-8') as f:
                 f.write(morning_text)
             with open(evening_file, 'w', encoding='utf-8') as f:
                 f.write(evening_text)
 
-            return morning_text, evening_text
+            return True
 
         except Exception as e:
-            log_message(f"處理文字稿失敗: {str(e)}", "ERROR")
-            return None, None
+            log_message(f"OCR 處理失敗: {str(e)}", "ERROR")
+            return False
 
-    async def run(self, input_path):
+    def run(self):
         """主運行邏輯"""
         try:
-            log_message("開始語音合成與後續處理...")
-            morning_text, evening_text = self.process_text(input_path)
-
-            if morning_text is None or evening_text is None:
-                log_message("文字處理失敗，跳過語音生成", "ERROR")
+            log_message("開始 OCR 處理...")
+            image_path = os.path.join(self.image_dir, f'{get_date_string()}.jpg')
+            if not os.path.exists(image_path):
+                log_message(f"圖片 {image_path} 不存在", "ERROR")
                 return False
 
-            # 生成語音文件
-            morning_mp3 = os.path.join(self.podcast_dir, 'morning.mp3')
-            evening_mp3 = os.path.join(self.podcast_dir, 'evening.mp3')
-
-            success = await self.generate_speech(morning_text, morning_mp3)
+            success = self.process_image(image_path)
             if success:
-                log_message("morning 音頻生成成功")
+                log_message("OCR 處理完成")
             else:
-                log_message("morning 音頻生成失敗，但繼續執行", "WARNING")
-
-            success = await self.generate_speech(evening_text, evening_mp3)
-            if success:
-                log_message("evening 音頻生成成功")
-            else:
-                log_message("evening 音頻生成失敗，但繼續執行", "WARNING")
-
-            return True
+                log_message("OCR 處理失敗，但繼續執行", "WARNING")
+            return success
 
         except Exception as e:
             log_message(f"主程序執行失敗: {str(e)}", "ERROR")
             return False
 
-async def main():
+def main():
     """主函數"""
     try:
-        tts = TextToSpeechEdge()
-        input_path = os.path.join('docs', 'img', f'{get_date_string()}.txt')
-        success = await tts.run(input_path)
+        ocr = OCRImageToText()
+        success = ocr.run()
 
         if success:
-            log_message("語音合成與後續處理完成")
-            exit(0)
+            log_message("OCR 處理完成")
+            sys.exit(0)
         else:
-            log_message("語音合成與後續處理失敗", "ERROR")
-            exit(1)
+            log_message("OCR 處理失敗", "ERROR")
+            sys.exit(1)
 
     except Exception as e:
         log_message(f"主程序執行失敗: {str(e)}", "ERROR")
-        exit(1)
+        sys.exit(1)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
