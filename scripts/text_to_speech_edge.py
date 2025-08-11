@@ -16,8 +16,8 @@ class TextToSpeechEdge:
         ensure_directory(self.podcast_dir)
 
     def clean_text(self, text):
-        """移除所有括弧內的文字，包括括弧本身"""
-        cleaned_text = re.sub(r'\(.*?\)', '', text).strip()
+        """移除所有括弧內的文字，包括半形 ( ) 和全形（ ）"""
+        cleaned_text = re.sub(r'\s*\(.*?\)|\s*（.*?）', '', text).strip()
         if not cleaned_text:
             log_message("清理後文本為空，寫入'今日無內容'", "WARNING")
             return "今日無內容"
@@ -26,9 +26,12 @@ class TextToSpeechEdge:
     async def generate_speech(self, text, output_path):
         """生成語音文件"""
         try:
-            log_message(f"開始為文本生成語音: {output_path}")
+            log_message(f"原始文本: {text[:50]}...")  # 記錄原始文本
             cleaned_text = self.clean_text(text)  # 清理文本
-            log_message(f"清理後文本: {cleaned_text[:50]}...")  # 記錄清理後的文本
+            log_message(f"清理後文本: {cleaned_text[:50]}...")  # 記錄清理後文本
+            if not cleaned_text:
+                log_message(f"清理後文本為空，跳過生成: {output_path}", "WARNING")
+                return False
             communicate = Communicate(text=cleaned_text, voice=self.voice, rate=self.rate, volume=self.volume)
             await communicate.save(output_path)
             log_message(f"語音文件已生成: {output_path}")
@@ -37,68 +40,21 @@ class TextToSpeechEdge:
             log_message(f"語音生成失敗: {str(e)}", "ERROR")
             return False
 
-    def process_text(self, input_path):
-        """處理文字稿並分割為晨間和晚間內容"""
-        try:
-            if not os.path.exists(input_path):
-                log_message(f"文字稿 {input_path} 不存在", "ERROR")
-                return None, None
-
-            with open(input_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-
-            if not content:
-                log_message("文字稿內容為空，寫入'今日無內容'", "WARNING")
-                return "今日無內容", "今日無內容"
-
-            # 偵測 '晨' 和 '晚' 關鍵字並分割
-            morning_match = re.search(r'八月十日\s*晨(?:.*?(?=八月十日\s*晚|$))', content, re.DOTALL)
-            evening_match = re.search(r'八月十日\s*晚(?:.*$)', content, re.DOTALL)
-
-            morning_text = morning_match.group(0).replace('八月十日 晨', '').strip() if morning_match else None
-            evening_text = evening_match.group(0).replace('八月十日 晚', '').strip() if evening_match else None
-
-            if not morning_text and not evening_text:
-                log_message("未偵測到'晨'或'晚'的關鍵字", "ERROR")
-                return "今日無內容", "今日無內容"
-
-            if morning_text:
-                morning_text = morning_text.strip()
-                log_message(f"晨間原始內容: {morning_text[:50]}...")
-            else:
-                log_message("未找到晨間內容，寫入'今日無內容'", "WARNING")
-                morning_text = "今日無內容"
-
-            if evening_text:
-                evening_text = evening_text.strip()
-                log_message(f"晚間原始內容: {evening_text[:50]}...")
-            else:
-                log_message("未找到晚間內容，寫入'今日無內容'", "WARNING")
-                evening_text = "今日無內容"
-
-            # 將原始文本保存為獨立文件（供日誌或後續使用）
-            morning_file = os.path.join(self.podcast_dir, 'morning.txt')
-            evening_file = os.path.join(self.podcast_dir, 'evening.txt')
-            with open(morning_file, 'w', encoding='utf-8') as f:
-                f.write(morning_text)
-            with open(evening_file, 'w', encoding='utf-8') as f:
-                f.write(evening_text)
-
-            return morning_text, evening_text
-
-        except Exception as e:
-            log_message(f"處理文字稿失敗: {str(e)}", "ERROR")
-            return None, None
-
-    async def run(self, input_path):
+    async def run(self):
         """主運行邏輯"""
         try:
             log_message("開始語音合成與後續處理...")
-            morning_text, evening_text = self.process_text(input_path)
+            morning_file = os.path.join(self.podcast_dir, 'morning.txt')
+            evening_file = os.path.join(self.podcast_dir, 'evening.txt')
 
-            if morning_text is None or evening_text is None:
-                log_message("文字處理失敗，跳過語音生成", "ERROR")
+            if not os.path.exists(morning_file) or not os.path.exists(evening_file):
+                log_message(f"缺少 morning.txt 或 evening.txt，跳過處理", "ERROR")
                 return False
+
+            with open(morning_file, 'r', encoding='utf-8') as f:
+                morning_text = f.read().strip()
+            with open(evening_file, 'r', encoding='utf-8') as f:
+                evening_text = f.read().strip()
 
             # 生成語音文件
             morning_mp3 = os.path.join(self.podcast_dir, 'morning.mp3')
@@ -126,8 +82,7 @@ async def main():
     """主函數"""
     try:
         tts = TextToSpeechEdge()
-        input_path = os.path.join('docs', 'img', f'{get_date_string()}.txt')
-        success = await tts.run(input_path)
+        success = await tts.run()
 
         if success:
             log_message("語音合成與後續處理完成")
