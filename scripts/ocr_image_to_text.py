@@ -1,35 +1,29 @@
 import os
 import re
-from PIL import Image
-import pytesseract
+import sys
 from utils import load_config, get_date_string, ensure_directory, get_taiwan_time, log_message
 
 class OCRImageToText:
     def __init__(self):
         self.config = load_config()
-        self.ocr_config = self.config.get('ocr', {})
-        self.image_dir = os.path.join('docs', 'img')
         self.output_dir = os.path.join('docs', 'podcast', get_date_string())
         ensure_directory(self.output_dir)
-        self.output_text_path = os.path.join(self.image_dir, f'{get_date_string()}.txt')
+        self.input_text_path = os.path.join('docs', 'img', f'{get_date_string()}.txt')
 
-    def process_image(self, image_path):
-        """處理圖片並提取文字，基於段落分隔生成 morning.txt 和 evening.txt"""
+    def process_text(self):
+        """處理校正稿並分割為晨間和晚間內容，基於空行"""
         try:
-            log_message(f"開始處理圖片: {image_path}")
-            # 打開圖片並進行 OCR
-            image = Image.open(image_path)
-            text = pytesseract.image_to_string(image, lang='chi_tra', config='--oem 3 --psm 6')
-            log_message(f"OCR 提取的原始文字: {text[:50]}...")
-
-            if not text.strip():
-                log_message("OCR 提取的文字為空", "WARNING")
+            log_message(f"開始處理校正稿: {self.input_text_path}")
+            if not os.path.exists(self.input_text_path):
+                log_message(f"校正稿 {self.input_text_path} 不存在", "ERROR")
                 return False
 
-            # 將文字保存到臨時文件
-            with open(self.output_text_path, 'w', encoding='utf-8') as f:
-                f.write(text.strip())
-            log_message(f"文字已保存至: {self.output_text_path}")
+            with open(self.input_text_path, 'r', encoding='utf-8') as f:
+                text = f.read().strip()
+
+            if not text:
+                log_message("校正稿內容為空，寫入'今日無內容'", "WARNING")
+                return False
 
             # 分割晨間和晚間內容，基於空行
             lines = text.strip().split('\n')
@@ -73,23 +67,18 @@ class OCRImageToText:
             return True
 
         except Exception as e:
-            log_message(f"OCR 處理失敗: {str(e)}", "ERROR")
+            log_message(f"處理校正稿失敗: {str(e)}", "ERROR")
             return False
 
     def run(self):
         """主運行邏輯"""
         try:
-            log_message("開始 OCR 處理...")
-            image_path = os.path.join(self.image_dir, f'{get_date_string()}.jpg')
-            if not os.path.exists(image_path):
-                log_message(f"圖片 {image_path} 不存在", "ERROR")
-                return False
-
-            success = self.process_image(image_path)
+            log_message("開始處理校正稿...")
+            success = self.process_text()
             if success:
-                log_message("OCR 處理完成")
+                log_message("校正稿處理完成")
             else:
-                log_message("OCR 處理失敗，但繼續執行", "WARNING")
+                log_message("校正稿處理失敗，但繼續執行", "WARNING")
             return success
 
         except Exception as e:
@@ -103,10 +92,10 @@ def main():
         success = ocr.run()
 
         if success:
-            log_message("OCR 處理完成")
+            log_message("校正稿處理完成")
             sys.exit(0)
         else:
-            log_message("OCR 處理失敗", "ERROR")
+            log_message("校正稿處理失敗", "ERROR")
             sys.exit(1)
 
     except Exception as e:
