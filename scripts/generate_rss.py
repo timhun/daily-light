@@ -14,14 +14,14 @@ RSS_FILE = os.path.join('docs', 'rss', 'podcast_light.xml')
 
 FIXED_DESCRIPTION = """每日一則靈修亮光，用聲音溫柔照亮新的一天。
 \n\n🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
-\n\n📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com"""
+\n\n📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com"""
 
 # ===== 初始化 Feed =====
 fg = FeedGenerator()
-fg.load_extension("podcast")  # 載入 Podcast 擴展
+fg.load_extension("podcast")
 fg.id(SITE_URL)
-fg.title("幫幫忙說每日亮光")
-fg.author({"name": "幫幫忙", "email": "tim.oneway@gmail.com"})
+fg.title("幫幫便說每日亮光")
+fg.author({"name": "幫幫便", "email": "tim.oneway@gmail.com"})
 fg.link(href=SITE_URL, rel="alternate")
 fg.language("zh-TW")
 fg.description(FIXED_DESCRIPTION)
@@ -30,8 +30,8 @@ fg.link(href=f"{SITE_URL}/rss/podcast_light.xml", rel="self")
 fg.podcast.itunes_category("Religion & Spirituality", "Christianity")
 fg.podcast.itunes_image(COVER_URL)
 fg.podcast.itunes_explicit("no")
-fg.podcast.itunes_author("幫幫忙")
-fg.podcast.itunes_owner(name="幫幫忙", email="tim.oneway@gmail.com")
+fg.podcast.itunes_author("幫幫便")
+fg.podcast.itunes_owner(name="幫幫便", email="tim.oneway@gmail.com")
 
 # ===== 找出最新資料夾 =====
 episodes_dir = os.path.join('docs', 'podcast')
@@ -51,7 +51,7 @@ base_path = os.path.join(episodes_dir, latest_folder)
 audio_files = [('morning.mp3', '晨間'), ('evening.mp3', '晚間')]
 for audio_file, session in audio_files:
     audio_path = os.path.join(base_path, audio_file)
-    archive_url_file = os.path.join(base_path, f"{session.lower()}_url.txt")  # 假設 URL 存於對應 txt
+    archive_url_file = os.path.join(base_path, f"{session.lower()}_url.txt")
 
     if os.path.exists(audio_path) and os.path.exists(archive_url_file):
         with open(archive_url_file, "r") as f:
@@ -65,7 +65,7 @@ for audio_file, session in audio_files:
             duration = None
 
         tz = pytz.timezone("Asia/Taipei")
-        pub_date = tz.localize(datetime.datetime.strptime(get_date_string(), "%Y%m%d"))
+        pub_date = tz.localize(datetime.datetime.now()).strftime("%a, %d %b %Y %H:%M:%S GMT")  # 使用當前日期
         title = f"每日亮光 - {get_date_string()} {session}"
 
         # 摘要處理 (假設 summary.txt 存在)
@@ -100,7 +100,6 @@ except Exception as e:
 def main():
     """主函數"""
     try:
-        # 這裡無需額外邏輯，RSS 已生成
         log_message("生成 RSS Feed 完成")
         sys.exit(0)
     except Exception as e:
