@@ -1,8 +1,61 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>幫幫便說每日亮光</title><link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link><description>每日一則靈修亮光，用聲音溫柔照亮新的一天。
-
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
+  <channel>
+    <title>幫幫便說每日亮光</title>
+    <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
+    <description>每日一則靈修亮光，用聲音溫柔照亮新的一天。
 
 🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
 
+📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</description>
+    <language>zh-TW</language>
+    <lastBuildDate>Sun, 22 Nov 2026 12:13:06 +0000</lastBuildDate>
+    <atom:link href="https://timhun.github.io/daily-light/rss/podcast_light.xml" rel="self" type="application/rss+xml" />
+    <image>
+      <url>https://timhun.github.io/daily-light/docs/img/cover.jpg</url>
+      <title>幫幫便說每日亮光</title>
+      <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
+    </image>
+    <itunes:subtitle>每日晨晚靈修與詩歌</itunes:subtitle>
+    <itunes:author>幫幫便</itunes:author>
+    <itunes:summary>每日一則靈修亮光，用聲音溫柔照亮新的一天。
 
-📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</description><atom:link href="https://timhun.github.io/daily-light/rss/podcast_light.xml" rel="self"/><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://timhun.github.io/daily-light/docs/img/cover.jpg</url><title>幫幫便說每日亮光</title><link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link></image><language>zh-TW</language><lastBuildDate>Tue, 19 Aug 2025 22:14:54 +0000</lastBuildDate><itunes:author>幫幫便</itunes:author><itunes:category text="Religion &amp; Spirituality"><itunes:category text="Christianity"/></itunes:category><itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg"/><itunes:explicit>no</itunes:explicit><itunes:owner><itunes:name>幫幫便</itunes:name><itunes:email>tim.oneway@gmail.com</itunes:email></itunes:owner></channel></rss>
+🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
+
+📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</itunes:summary>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg" />
+    <itunes:category text="Religion &amp; Spirituality">
+      <itunes:category text="Christianity" />
+    </itunes:category>
+    <itunes:owner>
+      <itunes:name>幫幫便</itunes:name>
+      <itunes:email>tim.oneway@gmail.com</itunes:email>
+    </itunes:owner>
+    <item>
+      <title>八月八日・晚</title>
+      <description>凡求告主名的，就必得救（羅十13）。
+到我這裡來的，我總不丟棄他（約六37）。主啊，你得國降臨的時候，求你記念我。耶穌對他說：我實在告訴你，今日你要同我在樂園裡了（路二十三42-43）。
+要我為你們做什麼？他們說：主啊，要我們的眼睛能看見。耶穌就動了慈心，摸他們的眼睛，他們立刻看見，就跟了耶穌（太二十32-34）。
+你們雖然不好，尚且知道拿好東西給兒女，何況天父，不更將聖靈給求他的人嗎？（路十一13）
+我必將我的靈放在你們裡面。主耶和華如此說：我要成就（結三十六27）。
+我們若照他的旨意求甚麼，他就聽我們，這是我們向他所存坦然無懼的心。既然知道他聽我們一切所求的，就知道我們所求於他的無不得著（</description>
+      <guid isPermaLink="false">dailybread-20260808-evening</guid>
+      <pubDate>Sat, 08 Aug 2026 18:00:00 +0000</pubDate>
+      <enclosure url="https://f005.backblazeb2.com/file/daily-light/20260808/evening.mp3" length="2757392" type="audio/mpeg" />
+      <itunes:duration>01:55</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>八月八日・晨</title>
+      <description>義人的路，好像黎明的光，越照越明，直到日午（箴四18）。
+這不是說：我已經得著了，已經完全了，我乃是竭力追求，或者可以得著基督耶穌所以得著我的（腓三12）。我們務要認識耶和華，竭力追求認識他（何六3）。那時義人在他們父的國裡，要發出光來，像太陽一樣（太十三43）。
+我們眾人既然敞著臉，得以看見主的榮光，好像鏡子裏反照，就變成主的形狀，榮上加榮，如同主的靈變成的（林後三18）。等那完全的來到，這有限的必歸於無有了。我們如今仿佛對著鏡子觀看，模糊不清，到那時，就要面對面了。我如今所知道的有限，到那時就全知道，如同主知道我一樣（林前十三10、12）。親愛的弟兄們，我們現在是神的兒女，將來如何，還未顯</description>
+      <guid isPermaLink="false">dailybread-20260808-morning</guid>
+      <pubDate>Sat, 08 Aug 2026 06:00:00 +0000</pubDate>
+      <enclosure url="https://f005.backblazeb2.com/file/daily-light/20260808/morning.mp3" length="3048919" type="audio/mpeg" />
+      <itunes:duration>02:07</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+  </channel>
+</rss>
