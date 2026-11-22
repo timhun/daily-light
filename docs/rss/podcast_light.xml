@@ -1,35 +1,35 @@
 <?xml version='1.0' encoding='utf-8'?>
 <rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
   <channel>
-    <title>幫幫便說每日亮光</title>
+    <title>幫幫忙說每日亮光</title>
     <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
     <description>每日一則靈修亮光，用聲音溫柔照亮新的一天。
 
 🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
 
-📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</description>
+📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com</description>
     <language>zh-TW</language>
-    <lastBuildDate>Sun, 22 Nov 2026 12:13:06 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 22 Nov 2026 12:30:58 +0000</lastBuildDate>
     <atom:link href="https://timhun.github.io/daily-light/rss/podcast_light.xml" rel="self" type="application/rss+xml" />
     <image>
       <url>https://timhun.github.io/daily-light/docs/img/cover.jpg</url>
-      <title>幫幫便說每日亮光</title>
+      <title>幫幫忙說每日亮光</title>
       <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
     </image>
     <itunes:subtitle>每日晨晚靈修與詩歌</itunes:subtitle>
-    <itunes:author>幫幫便</itunes:author>
+    <itunes:author>幫幫忙</itunes:author>
     <itunes:summary>每日一則靈修亮光，用聲音溫柔照亮新的一天。
 
 🔔 訂閱以接收每日晨間與晚間更新，探索經文與反思。
 
-📮 主持人：幫幫便，聯繫：tim.oneway@gmail.com</itunes:summary>
+📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com</itunes:summary>
     <itunes:explicit>false</itunes:explicit>
     <itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg" />
     <itunes:category text="Religion &amp; Spirituality">
       <itunes:category text="Christianity" />
     </itunes:category>
     <itunes:owner>
-      <itunes:name>幫幫便</itunes:name>
+      <itunes:name>幫幫忙</itunes:name>
       <itunes:email>tim.oneway@gmail.com</itunes:email>
     </itunes:owner>
     <item>
