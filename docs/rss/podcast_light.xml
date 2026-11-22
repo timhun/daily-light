@@ -9,10 +9,10 @@
 
 📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com</description>
     <language>zh-TW</language>
-    <lastBuildDate>Sun, 22 Nov 2026 12:30:58 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 22 Nov 2026 13:01:40 +0000</lastBuildDate>
     <atom:link href="https://timhun.github.io/daily-light/rss/podcast_light.xml" rel="self" type="application/rss+xml" />
     <image>
-      <url>https://timhun.github.io/daily-light/docs/img/cover.jpg</url>
+      <url>https://timhun.github.io/daily-light/img/cover.jpg</url>
       <title>幫幫忙說每日亮光</title>
       <link>https://timhun.github.io/daily-light/rss/podcast_light.xml</link>
     </image>
@@ -24,7 +24,7 @@
 
 📮 主持人：幫幫忙，聯繫：tim.oneway@gmail.com</itunes:summary>
     <itunes:explicit>false</itunes:explicit>
-    <itunes:image href="https://timhun.github.io/daily-light/docs/img/cover.jpg" />
+    <itunes:image href="https://timhun.github.io/daily-light/img/cover.jpg" />
     <itunes:category text="Religion &amp; Spirituality">
       <itunes:category text="Christianity" />
     </itunes:category>
